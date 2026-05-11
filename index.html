@@ -1,0 +1,2742 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArchiPolicy — Gouvernance des Acces Federes</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+
+/* ══ DARK THEME — Bleu nuit ardoise (moins noir, plus chaleureux) ══ */
+[data-theme="dark"] {
+  --bg:#151f2e; --surface:#1c2a3e; --card:#20304a; --card2:#243552;
+  --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.16);
+  --teal:#00d4be; --teal-dim:rgba(0,212,190,0.13);
+  --coral:#ff5a6a; --coral-dim:rgba(255,90,106,0.13);
+  --blue:#4f8ef7; --blue-dim:rgba(79,142,247,0.13);
+  --gold:#fbbf24; --gold-dim:rgba(251,191,36,0.13);
+  --violet:#b57bff; --violet-dim:rgba(181,123,255,0.13);
+  --green:#22d3a8; --green-dim:rgba(34,211,168,0.13);
+  --white:#e8f0fb; --muted:#5a7a99; --muted2:#90afc8;
+  --tp:#e8f0fb; --ts:#90afc8;
+}
+
+/* ══ LIGHT THEME — Blanc nacré avec accents vifs ══ */
+[data-theme="light"] {
+  --bg:#f4f7ff; --surface:#ffffff; --card:#ffffff; --card2:#f0f4ff;
+  --border:rgba(59,100,200,0.1); --border2:rgba(59,100,200,0.18);
+  --teal:#0096a0; --teal-dim:rgba(0,150,160,0.1);
+  --coral:#e0303f; --coral-dim:rgba(224,48,63,0.1);
+  --blue:#2557e8; --blue-dim:rgba(37,87,232,0.1);
+  --gold:#d97706; --gold-dim:rgba(217,119,6,0.1);
+  --violet:#7c3aed; --violet-dim:rgba(124,58,237,0.1);
+  --green:#059669; --green-dim:rgba(5,150,105,0.1);
+  --white:#0d1b2e; --muted:#6b7ea8; --muted2:#4a5e82;
+  --tp:#0d1b2e; --ts:#4a5e82;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body {
+  background:var(--bg); color:var(--tp);
+  font-family:'Outfit',sans-serif; min-height:100vh; overflow-x:hidden;
+  transition:background 0.3s,color 0.3s;
+}
+/* Light mode: fond avec léger dégradé bleu-perle */
+[data-theme="light"] body {
+  background: linear-gradient(160deg, #eef3ff 0%, #f6f9ff 40%, #edf5ff 100%);
+  background-attachment: fixed;
+}
+/* Dark mode: fond ardoise profond avec nuance bleue chaude */
+[data-theme="dark"] body {
+  background: linear-gradient(160deg, #151f2e 0%, #1a2840 50%, #162035 100%);
+  background-attachment: fixed;
+}
+
+/* smooth color transitions everywhere except canvas */
+*:not(canvas) { transition:background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease, box-shadow 0.25s ease; }
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:rgba(128,128,128,0.3);border-radius:2px;}
+
+/* ══ THEME TOGGLE (unified) ══ */
+.theme-btn {
+  display:flex; align-items:center; gap:0.38rem;
+  background:transparent; border:1px solid var(--border2);
+  border-radius:100px; padding:0.25rem 0.6rem;
+  cursor:pointer; font-family:'Outfit',sans-serif; font-size:0.7rem; font-weight:600;
+  color:var(--ts); flex-shrink:0; white-space:nowrap;
+}
+.theme-btn:hover { border-color:var(--teal); color:var(--teal); background:var(--teal-dim); }
+.toggle-track { width:28px; height:16px; border-radius:100px; background:var(--border2); position:relative; flex-shrink:0; transition:background 0.3s; }
+[data-theme="light"] .toggle-track { background:var(--teal); }
+.toggle-thumb { position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1); box-shadow:0 1px 4px rgba(0,0,0,0.3); }
+[data-theme="light"] .toggle-thumb { transform:translateX(12px); }
+.tb-sep { width:1px; height:20px; background:var(--border2); flex-shrink:0; }
+
+/* ══ LOGIN ══ */
+#loginScreen { position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; background:var(--bg); overflow-y:auto; padding:2rem 1rem; }
+[data-theme="light"] #loginScreen { background:linear-gradient(160deg,#eef3ff 0%,#f6f9ff 40%,#eaf2ff 100%); }
+[data-theme="dark"] #loginScreen { background:linear-gradient(160deg,#151f2e 0%,#1a2840 50%,#162035 100%); }
+.lg-glow-a { position:fixed; width:700px; height:700px; border-radius:50%; background:radial-gradient(circle,rgba(0,212,190,0.09) 0%,transparent 70%); top:-200px; left:-200px; pointer-events:none; }
+.lg-glow-b { position:fixed; width:600px; height:600px; border-radius:50%; background:radial-gradient(circle,rgba(79,142,247,0.08) 0%,transparent 70%); bottom:-150px; right:-150px; pointer-events:none; }
+[data-theme="light"] .lg-glow-a { background:radial-gradient(circle,rgba(0,150,160,0.12) 0%,transparent 70%); }
+[data-theme="light"] .lg-glow-b { background:radial-gradient(circle,rgba(37,87,232,0.1) 0%,transparent 70%); }
+.lg-wrap { position:relative; z-index:1; width:100%; max-width:500px; }
+.lg-badge { display:inline-flex; align-items:center; gap:0.5rem; background:var(--teal-dim); border:1px solid rgba(0,229,204,0.25); padding:0.3rem 1rem; border-radius:100px; font-family:'JetBrains Mono',monospace; font-size:0.67rem; color:var(--teal); letter-spacing:0.1em; margin-bottom:1.2rem; }
+[data-theme="light"] .lg-badge { border-color:rgba(0,122,110,0.3); }
+.lg-sub { font-size:0.83rem; color:var(--ts); margin-bottom:1.8rem; }
+
+/* Profile grid */
+.pg-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.7rem; margin-bottom:1.1rem; }
+.pc {
+  background:var(--surface); border:1.5px solid var(--border);
+  border-radius:14px; padding:1.1rem 0.85rem;
+  cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:0.5rem;
+  position:relative; overflow:hidden;
+}
+.pc:hover { transform:translateY(-3px) scale(1.015); border-color:var(--pc-col); }
+.pc.sel { border-color:var(--pc-col); box-shadow:0 0 0 2px var(--pc-col),0 8px 28px rgba(0,0,0,0.18); }
+[data-theme="light"] .pc { box-shadow:0 2px 10px rgba(0,0,0,0.06); }
+.pc-logo { width:50px; height:50px; border-radius:11px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.pc-logo svg { width:44px; height:44px; }
+.pc-name { font-size:0.8rem; font-weight:700; color:var(--tp); text-align:center; }
+.pc-role { font-family:'JetBrains Mono',monospace; font-size:0.57rem; padding:0.18rem 0.5rem; border-radius:6px; text-align:center; line-height:1.5; }
+.pc-check { position:absolute; top:0.45rem; right:0.45rem; width:17px; height:17px; border-radius:50%; background:var(--pc-col); display:none; align-items:center; justify-content:center; font-size:0.6rem; color:#fff; font-weight:800; }
+.pc.sel .pc-check { display:flex; }
+
+/* Login form */
+.lform { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:1.5rem; }
+[data-theme="light"] .lform { box-shadow:0 4px 20px rgba(0,0,0,0.08); }
+.lform-head { display:flex; align-items:center; gap:0.75rem; margin-bottom:1.1rem; }
+.lform-logo { width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.lform-logo svg { width:30px; height:30px; }
+.lform-name { font-size:0.92rem; font-weight:700; color:var(--tp); }
+.lform-role { font-size:0.72rem; color:var(--ts); }
+.inp-lbl { display:block; font-size:0.68rem; font-weight:700; color:var(--ts); margin-bottom:0.32rem; letter-spacing:0.06em; text-transform:uppercase; }
+.inp-wrap { position:relative; margin-bottom:0.8rem; }
+.inp-ico { position:absolute; left:0.72rem; top:50%; transform:translateY(-50%); font-size:0.82rem; }
+.inp-f { width:100%; background:rgba(128,128,128,0.07); border:1.5px solid var(--border2); border-radius:10px; color:var(--tp); font-family:'Outfit',sans-serif; font-size:0.87rem; padding:0.62rem 0.85rem 0.62rem 2.35rem; outline:none; }
+.inp-f::placeholder { color:var(--muted); }
+.inp-f:focus { border-color:var(--teal); background:var(--teal-dim); }
+.inp-hint { font-family:'JetBrains Mono',monospace; font-size:0.59rem; color:var(--muted2); margin-top:0.22rem; }
+.inp-hint span { color:var(--teal); font-weight:700; }
+.btn-login { width:100%; padding:0.8rem; background:linear-gradient(135deg,var(--teal),#00b4d8); border:none; border-radius:10px; cursor:pointer; font-family:'Outfit',sans-serif; font-size:0.93rem; font-weight:700; color:#000; letter-spacing:0.02em; margin-top:0.35rem; }
+.btn-login:hover { opacity:0.9; transform:translateY(-1px); box-shadow:0 8px 22px rgba(0,229,204,0.28); }
+.lerr { background:var(--coral-dim); border:1px solid rgba(255,77,94,0.3); border-radius:8px; padding:0.55rem 0.85rem; margin-top:0.7rem; font-size:0.77rem; color:var(--coral); display:none; align-items:center; gap:0.45rem; }
+.lerr.show { display:flex; }
+/* form hint */
+
+/* ══ APP ══ */
+#app { display:none; }
+.topbar { position:sticky; top:0; z-index:200; height:54px; background:rgba(21,31,46,0.92); backdrop-filter:blur(20px) saturate(160%); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 1rem; gap:0.55rem; overflow:hidden; }
+[data-theme="light"] .topbar { background:rgba(255,255,255,0.88); border-bottom:1px solid rgba(59,100,200,0.12); box-shadow:0 1px 20px rgba(37,87,232,0.07); }
+.tb-logo { display:flex; align-items:center; gap:0.5rem; flex-shrink:0; cursor:default; text-decoration:none; }
+.tb-logo-icon { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#00e5cc 0%,#3b82f6 100%); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 2px 8px rgba(0,229,204,0.35); }
+[data-theme="light"] .tb-logo-icon { box-shadow:0 2px 8px rgba(0,122,110,0.3); }
+.tb-logo-text { display:flex; align-items:baseline; gap:0; }
+.tb-logo-archi { font-size:0.97rem; font-weight:800; letter-spacing:-0.03em; color:var(--tp); }
+.tb-logo-policy { font-size:0.97rem; font-weight:300; letter-spacing:-0.01em; color:var(--teal); }
+.tb-div { width:1px; height:20px; background:var(--border2); flex-shrink:0; }
+.tb-user { display:flex; align-items:center; gap:0.45rem; min-width:0; overflow:hidden; flex-shrink:1; }
+.tb-ulogo { width:25px; height:25px; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.tb-ulogo svg { width:21px; height:21px; }
+.tb-uname { font-size:0.78rem; font-weight:600; color:var(--tp); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:130px; }
+.tb-urole { font-family:'JetBrains Mono',monospace; font-size:0.55rem; color:var(--ts); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:130px; }
+.spacer { flex:1; min-width:4px; }
+.state-pill { display:flex; align-items:center; gap:0.38rem; padding:0.25rem 0.65rem; border-radius:100px; font-family:'JetBrains Mono',monospace; font-size:0.64rem; font-weight:500; border:1px solid; cursor:pointer; letter-spacing:0.05em; flex-shrink:0; white-space:nowrap; }
+.state-pill.normal { color:var(--green); border-color:rgba(16,185,129,0.3); background:var(--green-dim); }
+.state-pill.emergency { color:var(--coral); border-color:rgba(255,77,94,0.4); background:var(--coral-dim); animation:ppulse 1.2s infinite; }
+@keyframes ppulse{0%,100%{box-shadow:0 0 0 0 rgba(255,77,94,0.35);}50%{box-shadow:0 0 0 6px rgba(255,77,94,0);}}
+.sdot { width:7px; height:7px; border-radius:50%; }
+.sdot.g { background:var(--green); box-shadow:0 0 6px var(--green); }
+.sdot.r { background:var(--coral); box-shadow:0 0 6px var(--coral); animation:blink 0.9s infinite; }
+@keyframes blink{50%{opacity:0;}}
+.tb-time { font-family:'JetBrains Mono',monospace; font-size:0.67rem; color:var(--ts); flex-shrink:0; }
+.btn-logout-app {
+  display:flex; align-items:center; gap:0.32rem;
+  background:var(--coral-dim); border:1.5px solid rgba(255,77,94,0.35);
+  border-radius:9px; padding:0.28rem 0.75rem;
+  color:var(--coral); font-family:'Outfit',sans-serif; font-size:0.74rem; font-weight:600;
+  cursor:pointer; transition:all 0.2s; letter-spacing:0.01em; flex-shrink:0; white-space:nowrap;
+}
+.btn-logout-app:hover { background:var(--coral); color:#fff; border-color:var(--coral); transform:translateY(-1px); box-shadow:0 4px 14px rgba(255,77,94,0.3); }
+
+/* Layout */
+.app-layout { display:grid; grid-template-columns:210px 1fr; min-height:calc(100vh - 54px); }
+.sidebar { background:var(--surface); border-right:1px solid var(--border); padding:1rem 0.7rem; display:flex; flex-direction:column; gap:0.13rem; position:sticky; top:54px; height:calc(100vh - 54px); overflow-y:auto; }
+[data-theme="light"] .sidebar { background:rgba(255,255,255,0.96); box-shadow:2px 0 20px rgba(37,87,232,0.07); border-right:1px solid rgba(59,100,200,0.1); }
+.sb-sec { font-family:'JetBrains Mono',monospace; font-size:0.56rem; letter-spacing:0.12em; color:var(--muted); text-transform:uppercase; padding:0.5rem 0.6rem 0.22rem; margin-top:0.4rem; }
+.nav-it { display:flex; align-items:center; gap:0.6rem; padding:0.56rem 0.72rem; border-radius:10px; cursor:pointer; border:none; background:transparent; color:var(--ts); font-family:'Outfit',sans-serif; font-size:0.8rem; font-weight:500; width:100%; text-align:left; position:relative; }
+.nav-it:hover { background:rgba(128,128,128,0.08); color:var(--tp); }
+.nav-it.active { background:var(--teal-dim); color:var(--teal); font-weight:600; }
+.nav-it.active::before { content:''; position:absolute; left:0; top:25%; bottom:25%; width:3px; border-radius:2px; background:var(--teal); }
+.nav-ico { font-size:0.93rem; width:18px; text-align:center; }
+.nav-badge { margin-left:auto; background:var(--coral); color:#fff; font-size:0.54rem; font-weight:700; width:15px; height:15px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+.sb-foot { margin-top:auto; padding-top:0.85rem; border-top:1px solid var(--border); font-family:'JetBrains Mono',monospace; font-size:0.57rem; color:var(--muted); text-align:center; }
+.main { padding:1.4rem; overflow-y:auto; }
+.view { display:none; animation:fup 0.3s ease; }
+.view.active { display:block; }
+@keyframes fup{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ══ COMPONENTS ══ */
+.ph { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:1.3rem; flex-wrap:wrap; gap:0.8rem; }
+.pt { font-size:1.42rem; font-weight:800; letter-spacing:-0.03em; color:var(--tp); }
+.ps { font-size:0.79rem; color:var(--ts); margin-top:0.18rem; }
+
+/* Grids */
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:0.85rem;}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:0.85rem;}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:0.85rem;}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:0.85rem;}
+.g12{display:grid;grid-template-columns:1fr 2fr;gap:0.85rem;}
+.mb1{margin-bottom:0.85rem;}
+
+/* Stat card */
+.scard { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1rem 1.1rem; position:relative; overflow:hidden; }
+.scard:hover { border-color:var(--border2); }
+[data-theme="light"] .scard { box-shadow:0 2px 16px rgba(37,87,232,0.07); border:1px solid rgba(59,100,200,0.1); }
+.sc-glow { position:absolute; top:-25px; right:-25px; width:90px; height:90px; border-radius:50%; opacity:0.12; }
+[data-theme="light"] .sc-glow { opacity:0.08; }
+.sc-ico { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:1rem; margin-bottom:0.68rem; }
+.sc-lbl { font-size:0.69rem; color:var(--ts); font-weight:500; margin-bottom:0.22rem; }
+.sc-val { font-size:1.85rem; font-weight:800; letter-spacing:-0.04em; line-height:1; }
+.sc-sub { font-size:0.69rem; color:var(--ts); margin-top:0.22rem; }
+
+/* Card */
+.card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.05rem; }
+[data-theme="light"] .card { box-shadow:0 2px 16px rgba(37,87,232,0.07); border:1px solid rgba(59,100,200,0.1); }
+.card-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem; }
+.card-ttl { font-size:0.84rem; font-weight:700; color:var(--tp); }
+
+/* Pills */
+.pill { display:inline-flex; align-items:center; gap:0.22rem; font-family:'JetBrains Mono',monospace; font-size:0.59rem; font-weight:600; padding:0.17rem 0.48rem; border-radius:100px; }
+.pg { background:rgba(16,185,129,0.15); color:var(--green); }
+.pr { background:rgba(255,77,94,0.15); color:var(--coral); }
+.pb { background:rgba(59,130,246,0.15); color:var(--blue); }
+.po { background:rgba(245,158,11,0.15); color:var(--gold); }
+.pv { background:rgba(168,85,247,0.15); color:var(--violet); }
+.pt2 { background:rgba(0,229,204,0.15); color:var(--teal); }
+
+/* Video */
+.vid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.52rem;}
+.vid-cell{background:#0a0e18;border:1px solid var(--border);border-radius:9px;aspect-ratio:16/9;position:relative;overflow:hidden;cursor:pointer;}
+.vid-cell canvas{position:absolute;inset:0;width:100%;height:100%;}
+.vid-cell:hover{border-color:var(--blue);transform:scale(1.01);}
+.vid-cell.alert{border-color:var(--coral);animation:pa 1.2s infinite;}
+[data-theme="light"] .vid-cell{background:#c8d8f0;}
+@keyframes pa{0%,100%{box-shadow:0 0 0 0 rgba(255,77,94,0.4);}50%{box-shadow:0 0 0 5px rgba(255,77,94,0);}}
+.vid-lbl{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.85));padding:0.7rem 0.42rem 0.28rem;font-family:'JetBrains Mono',monospace;font-size:0.54rem;color:#fff;display:flex;justify-content:space-between;align-items:flex-end;}
+.vid-d{position:absolute;top:0.28rem;right:0.28rem;font-family:'JetBrains Mono',monospace;font-size:0.54rem;padding:0.1rem 0.32rem;border-radius:4px;}
+.dok{background:rgba(16,185,129,0.22);color:var(--green);}
+.dw{background:rgba(245,158,11,0.22);color:var(--gold);}
+.dc{background:rgba(255,77,94,0.32);color:var(--coral);animation:blink 0.8s infinite;}
+.rec{width:5px;height:5px;border-radius:50%;background:var(--coral);animation:blink 1s infinite;}
+
+/* Sensor row */
+.sr{display:flex;align-items:center;gap:0.62rem;padding:0.42rem 0;border-bottom:1px solid var(--border);}
+.sr:last-child{border-bottom:none;}
+.sr-n{font-size:0.72rem;flex:1;color:var(--tp);}
+.sr-t{height:4px;background:rgba(128,128,128,0.12);border-radius:2px;flex:0 0 80px;}
+.sr-f{height:4px;border-radius:2px;}
+.sr-v{font-family:'JetBrains Mono',monospace;font-size:0.67rem;min-width:42px;text-align:right;}
+
+/* Table */
+.dtab{width:100%;border-collapse:collapse;font-size:0.75rem;}
+.dtab thead th{font-family:'JetBrains Mono',monospace;font-size:0.57rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--ts);padding:0.52rem 0.72rem;text-align:left;border-bottom:1px solid var(--border);}
+.dtab tbody td{padding:0.48rem 0.72rem;border-bottom:1px solid var(--border);color:var(--tp);}
+.dtab tbody tr:last-child td{border-bottom:none;}
+.dtab tbody tr:hover td{background:rgba(128,128,128,0.04);}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:0.38rem;padding:0.5rem 0.95rem;border-radius:9px;border:none;font-family:'Outfit',sans-serif;font-size:0.79rem;font-weight:600;cursor:pointer;}
+.btn-p{background:linear-gradient(135deg,var(--teal),#00b4d8);color:#000;}
+.btn-p:hover{opacity:0.9;transform:translateY(-1px);}
+.btn-d{background:var(--coral);color:#fff;}
+.btn-d:hover{opacity:0.9;transform:translateY(-1px);}
+.btn-g{background:transparent;border:1px solid var(--border2);color:var(--ts);}
+.btn-g:hover{border-color:var(--tp);color:var(--tp);}
+.btn-sm{padding:0.32rem 0.72rem;font-size:0.71rem;border-radius:8px;}
+
+/* Form */
+.flbl{display:block;font-size:0.68rem;font-weight:700;color:var(--ts);margin-bottom:0.3rem;letter-spacing:0.05em;text-transform:uppercase;}
+.fctl{width:100%;background:rgba(128,128,128,0.07);border:1.5px solid var(--border2);border-radius:10px;color:var(--tp);font-family:'Outfit',sans-serif;font-size:0.82rem;padding:0.6rem 0.82rem;outline:none;}
+.fctl:focus{border-color:var(--coral);background:var(--coral-dim);}
+.fg{margin-bottom:0.82rem;}
+.access-result{padding:0.82rem 0.92rem;border-radius:9px;margin-top:0.72rem;font-family:'JetBrains Mono',monospace;font-size:0.68rem;line-height:1.7;display:none;white-space:pre-wrap;}
+.access-result.show{display:block;animation:fup 0.3s ease;}
+.access-result.granted{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:var(--green);}
+.access-result.denied{background:rgba(255,77,94,0.1);border:1px solid rgba(255,77,94,0.3);color:var(--coral);}
+
+/* Flow */
+.flow-strip{display:flex;align-items:center;background:rgba(128,128,128,0.06);border:1px solid var(--border);border-radius:11px;padding:0.52rem 0.68rem;}
+.fn{flex:1;text-align:center;}
+.fn-ico{font-size:1.05rem;}
+.fn-lbl{font-family:'JetBrains Mono',monospace;font-size:0.53rem;color:var(--ts);display:block;margin-top:0.12rem;}
+.farr{color:var(--teal);font-size:0.82rem;flex-shrink:0;animation:fp 1.5s infinite;}
+@keyframes fp{0%,100%{opacity:0.3;transform:translateX(0);}50%{opacity:1;transform:translateX(2px);}}
+
+/* Log */
+.logp{background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:11px;padding:0.72rem;font-family:'JetBrains Mono',monospace;font-size:0.65rem;height:145px;overflow-y:auto;line-height:1.8;}
+[data-theme="light"] .logp{background:rgba(0,30,80,0.05);}
+.lts{color:var(--muted);}
+.lok2{color:var(--green);}
+.lerr2{color:var(--coral);}
+.lsys{color:var(--teal);}
+.linf{color:var(--gold);}
+
+/* Net map */
+.netmap{background:rgba(0,0,0,0.22);border:1px solid var(--border);border-radius:11px;position:relative;overflow:hidden;height:188px;}
+[data-theme="light"] .netmap{background:rgba(30,60,120,0.06);}
+.nn{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;}
+.nd{width:34px;height:34px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:700;font-family:'JetBrains Mono',monospace;position:relative;}
+.nd::after{content:'';position:absolute;inset:-2px;border-radius:50%;border:2px solid;opacity:0;animation:sonar 2.2s infinite ease-out;}
+@keyframes sonar{0%{transform:scale(1);opacity:0.4;}100%{transform:scale(2.1);opacity:0;}}
+.nl{font-family:'JetBrains Mono',monospace;font-size:0.51rem;color:var(--ts);text-align:center;}
+
+/* ID card */
+.idcard{background:linear-gradient(135deg,var(--coral-dim),var(--blue-dim));border:1px solid rgba(255,77,94,0.25);border-radius:14px;padding:1.05rem;display:flex;align-items:center;gap:0.88rem;margin-bottom:0.88rem;}
+.id-av{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--coral),var(--blue));display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;}
+.id-info h3{font-size:0.93rem;font-weight:700;color:var(--tp);}
+.id-info p{font-size:0.72rem;color:var(--ts);}
+.id-did{font-family:'JetBrains Mono',monospace;font-size:0.55rem;color:var(--teal);margin-top:0.32rem;}
+.did-ok{background:rgba(16,185,129,0.15);color:var(--green);font-size:0.55rem;padding:0.08rem 0.32rem;border-radius:4px;margin-left:0.28rem;}
+
+/* Timeline */
+.timeline{position:relative;padding-left:1.1rem;}
+.timeline::before{content:'';position:absolute;left:4px;top:0;bottom:0;width:1px;background:var(--border);}
+.tl-item{position:relative;margin-bottom:0.68rem;}
+.tl-dot{position:absolute;left:-1.07rem;top:4px;width:9px;height:9px;border-radius:50%;border:2px solid;}
+.tl-dot.ok{background:var(--green);border-color:var(--green);}
+.tl-dot.warn{background:var(--gold);border-color:var(--gold);}
+.tl-dot.alert{background:var(--coral);border-color:var(--coral);animation:blink 1s infinite;}
+.tl-dot.info{background:var(--teal);border-color:var(--teal);}
+.tl-time{font-family:'JetBrains Mono',monospace;font-size:0.59rem;color:var(--ts);}
+.tl-msg{font-size:0.75rem;line-height:1.4;color:var(--tp);}
+
+/* Alert box */
+.abox{border-radius:11px;padding:0.78rem 0.92rem;display:flex;align-items:flex-start;gap:0.68rem;margin-bottom:0.88rem;}
+.abox.danger{background:var(--coral-dim);border:1px solid rgba(255,77,94,0.28);}
+.abox.warning{background:var(--gold-dim);border:1px solid rgba(245,158,11,0.28);}
+.abox.info{background:var(--teal-dim);border:1px solid rgba(0,229,204,0.22);}
+.abox-ico{font-size:0.98rem;margin-top:1px;}
+.abox-txt{font-size:0.79rem;line-height:1.5;color:var(--tp);}
+.abox-txt strong{display:block;margin-bottom:0.1rem;}
+
+/* code block */
+.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:0.62rem;font-family:'JetBrains Mono',monospace;font-size:0.61rem;color:var(--ts);line-height:1.7;}
+[data-theme="light"] .code-block{background:rgba(0,30,80,0.05);}
+
+@media(max-width:900px){.app-layout{grid-template-columns:1fr;}.sidebar{display:none;}.g4,.g3{grid-template-columns:1fr 1fr;}.g21,.g12{grid-template-columns:1fr;}.vid-grid{grid-template-columns:1fr 1fr;}}
+
+/* ── Variables manquantes ── */
+:root { --mono:'JetBrains Mono',monospace; }
+
+/* ── Formulaires PAP ── */
+.form-group { margin-bottom:0.75rem; }
+.form-label { display:block; font-size:0.68rem; font-weight:700; color:var(--ts); margin-bottom:0.3rem; letter-spacing:0.05em; text-transform:uppercase; }
+.form-ctrl { width:100%; background:rgba(128,128,128,0.07); border:1.5px solid var(--border2); border-radius:10px; color:var(--tp); font-family:'JetBrains Mono',monospace; font-size:0.8rem; padding:0.55rem 0.75rem; outline:none; appearance:none; -webkit-appearance:none; cursor:pointer; }
+.form-ctrl:focus { border-color:var(--teal); background:var(--teal-dim); }
+[data-theme="light"] .form-ctrl { background:rgba(0,0,0,0.04); }
+.form-ctrl option { background:var(--surface); color:var(--tp); }
+
+/* ── PAP — Bandeau contexte global ── */
+.pap-ctx-box { border-radius:13px; padding:1rem 1.15rem; margin-bottom:1rem; border:1px solid; }
+.pap-ctx-normal   { background:linear-gradient(135deg,var(--green-dim),rgba(16,185,129,0.04)); border-color:rgba(16,185,129,0.25); }
+.pap-ctx-emergency{ background:linear-gradient(135deg,var(--coral-dim),rgba(255,77,94,0.06));  border-color:rgba(255,77,94,0.3); animation:pap-pulse 1.8s infinite; }
+@keyframes pap-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,77,94,0.15);}50%{box-shadow:0 0 0 8px rgba(255,77,94,0);}}
+.pap-ctx-title { font-size:1.15rem; font-weight:800; letter-spacing:-0.02em; color:var(--tp); margin-bottom:0.18rem; }
+.pap-ctx-sub   { font-size:0.72rem; color:var(--ts); }
+.pap-ctx-stat  { text-align:center; min-width:80px; }
+.pap-ctx-stat-val{ font-size:1.15rem; font-weight:800; line-height:1; }
+.pap-ctx-stat-lbl{ font-size:0.62rem; color:var(--ts); margin-top:0.15rem; font-family:'JetBrains Mono',monospace; }
+.pap-ctx-impact{ margin-top:0.65rem; padding-top:0.65rem; border-top:1px solid var(--border2); font-size:0.77rem; color:var(--tp); line-height:1.55; }
+
+/* ══════════════════════════════════════════
+   CARTE THERMIQUE — HEATMAP
+══════════════════════════════════════════ */
+
+/* Conteneur principal carte */
+#heatmap-container {
+  display:grid;
+  grid-template-columns:1fr 340px;
+  gap:1rem;
+  height:calc(100vh - 180px);
+  min-height:520px;
+}
+#heatmap-container.full-width { grid-template-columns:1fr; }
+
+/* La carte Leaflet */
+#leaflet-map {
+  border-radius:14px;
+  border:1px solid var(--border);
+  overflow:hidden;
+  z-index:1;
+  min-height:480px;
+}
+[data-theme="light"] #leaflet-map { box-shadow:0 2px 16px rgba(0,0,0,0.1); }
+
+/* Override Leaflet popup pour le thème */
+.leaflet-popup-content-wrapper {
+  background:var(--card) !important;
+  border:1px solid var(--border2) !important;
+  border-radius:12px !important;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4) !important;
+  color:var(--tp) !important;
+  font-family:'Outfit',sans-serif !important;
+  padding:0 !important;
+}
+.leaflet-popup-content { margin:0 !important; width:260px !important; }
+.leaflet-popup-tip { background:var(--card) !important; }
+.leaflet-popup-close-button { color:var(--ts) !important; font-size:1rem !important; top:10px !important; right:10px !important; }
+.leaflet-popup-close-button:hover { color:var(--coral) !important; }
+
+/* Custom marker circles */
+.heat-marker {
+  border-radius:50%;
+  border:3px solid rgba(255,255,255,0.9);
+  box-shadow:0 2px 12px rgba(0,0,0,0.5);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.62rem; font-weight:700;
+  color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.7);
+  cursor:pointer;
+  transition:transform 0.2s, box-shadow 0.2s;
+  animation:marker-in 0.4s ease;
+}
+@keyframes marker-in { from{transform:scale(0);opacity:0;} to{transform:scale(1);opacity:1;} }
+.heat-marker:hover { transform:scale(1.15); box-shadow:0 4px 20px rgba(0,0,0,0.6); }
+.heat-marker.critical { background:radial-gradient(circle,#ff6b7a,#d63444); border-color:#fff; animation:marker-in 0.4s ease, pulse-marker 1.5s infinite; }
+.heat-marker.warning  { background:radial-gradient(circle,#fbbf24,#d97706); }
+.heat-marker.normal   { background:radial-gradient(circle,#34d399,#059669); }
+@keyframes pulse-marker {
+  0%,100%{ box-shadow:0 2px 12px rgba(214,52,68,0.4), 0 0 0 0 rgba(214,52,68,0.5); }
+  50%    { box-shadow:0 2px 12px rgba(214,52,68,0.4), 0 0 0 10px rgba(214,52,68,0); }
+}
+
+/* Panneau latéral détail */
+#heatmap-panel {
+  display:flex; flex-direction:column; gap:0.8rem;
+  overflow-y:auto;
+}
+
+/* Légende */
+.hm-legend {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:0.9rem;
+}
+[data-theme="light"] .hm-legend { box-shadow:0 2px 10px rgba(0,0,0,0.06); }
+.hm-legend-title {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--ts); margin-bottom:0.7rem;
+}
+.hm-legend-item {
+  display:flex; align-items:center; gap:0.6rem;
+  padding:0.35rem 0; border-bottom:1px solid var(--border);
+  font-size:0.78rem;
+}
+.hm-legend-item:last-child { border-bottom:none; }
+.hm-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+
+/* Stats résumé */
+.hm-stats {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:0.9rem;
+}
+[data-theme="light"] .hm-stats { box-shadow:0 2px 10px rgba(0,0,0,0.06); }
+.hm-stat-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.4rem 0; border-bottom:1px solid var(--border);
+  font-size:0.8rem;
+}
+.hm-stat-row:last-child { border-bottom:none; }
+.hm-stat-val { font-family:'JetBrains Mono',monospace; font-size:0.82rem; font-weight:700; }
+
+/* Popup personnalisée */
+.popup-inner { padding:1rem; }
+.popup-gare-name {
+  font-size:0.95rem; font-weight:800; color:var(--tp);
+  margin-bottom:0.6rem; letter-spacing:-0.02em;
+}
+.popup-badge {
+  display:inline-flex; align-items:center; gap:0.3rem;
+  font-family:'JetBrains Mono',monospace; font-size:0.6rem; font-weight:600;
+  padding:0.18rem 0.5rem; border-radius:100px; margin-bottom:0.8rem;
+}
+.popup-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:0.32rem 0; border-bottom:1px solid var(--border);
+  font-size:0.75rem;
+}
+.popup-row:last-child { border-bottom:none; }
+.popup-key { color:var(--ts); }
+.popup-val { font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--tp); }
+
+/* Mini sparkline */
+.popup-spark {
+  margin-top:0.7rem; background:rgba(0,0,0,0.2);
+  border-radius:8px; padding:0.5rem; position:relative;
+}
+[data-theme="light"] .popup-spark { background:rgba(0,0,0,0.05); }
+.popup-spark-title {
+  font-family:'JetBrains Mono',monospace; font-size:0.58rem;
+  color:var(--ts); text-transform:uppercase; letter-spacing:0.08em;
+  margin-bottom:0.35rem;
+}
+
+/* Liste gares alertes */
+.hm-alert-list {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:0.9rem;
+  flex:1; overflow-y:auto;
+}
+[data-theme="light"] .hm-alert-list { box-shadow:0 2px 10px rgba(0,0,0,0.06); }
+.hm-alert-item {
+  display:flex; align-items:center; gap:0.6rem;
+  padding:0.5rem 0.4rem; border-radius:8px;
+  cursor:pointer; transition:background 0.15s; margin-bottom:0.15rem;
+}
+.hm-alert-item:hover { background:rgba(128,128,128,0.08); }
+.hm-alert-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.hm-alert-name { font-size:0.78rem; font-weight:600; flex:1; color:var(--tp); }
+.hm-alert-val { font-family:'JetBrains Mono',monospace; font-size:0.7rem; }
+.hm-alert-trend { font-size:0.7rem; }
+
+/* Barre de contrôle carte */
+.hm-controls {
+  display:flex; align-items:center; gap:0.6rem;
+  flex-wrap:wrap; margin-bottom:0.8rem;
+}
+.hm-ctrl-btn {
+  background:var(--card); border:1px solid var(--border2);
+  border-radius:8px; padding:0.3rem 0.7rem;
+  font-family:'Outfit',sans-serif; font-size:0.73rem; font-weight:600;
+  color:var(--ts); cursor:pointer; transition:all 0.18s;
+}
+.hm-ctrl-btn:hover,.hm-ctrl-btn.active { background:var(--teal-dim); border-color:var(--teal); color:var(--teal); }
+.hm-update-badge {
+  display:flex; align-items:center; gap:0.35rem;
+  font-family:'JetBrains Mono',monospace; font-size:0.62rem;
+  color:var(--ts); margin-left:auto;
+}
+.hm-pulse { width:6px; height:6px; border-radius:50%; background:var(--green); animation:blink 1.2s infinite; }
+
+/* Restricted banner for secours/normal */
+.hm-restricted {
+  background:var(--gold-dim); border:1px solid rgba(245,158,11,0.3);
+  border-radius:12px; padding:1rem;
+  display:flex; align-items:center; gap:0.7rem;
+  margin-bottom:1rem; font-size:0.8rem; color:var(--tp);
+}
+.hm-restricted strong { display:block; color:var(--gold); margin-bottom:0.15rem; }
+
+/* Leaflet dark mode tile filter */
+[data-theme="dark"] .leaflet-tile { filter:brightness(0.65) saturate(0.7) hue-rotate(185deg); }
+[data-theme="dark"] .leaflet-container { background:#0a1420; }
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="loginScreen">
+  <div class="lg-glow-a"></div>
+  <div class="lg-glow-b"></div>
+  <div class="lg-wrap">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem">
+      <button class="theme-btn" id="loginThemeBtn" onclick="toggleTheme()">
+        <span id="loginIco">&#9728;</span>
+        <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        <span id="loginLbl" style="font-size:0.68rem">Mode sombre</span>
+      </button>
+    </div>
+    <div style="text-align:center;margin-bottom:1.8rem">
+      <div class="lg-badge">&#11041; ArchiPolicy SYSTEM &middot; v2.1.0 &middot; Telecom Paris</div>
+      <!-- Logo ArchiPolicy -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:0.9rem;margin-bottom:0.5rem">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#00e5cc 0%,#3b82f6 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,229,204,0.4),0 0 40px rgba(59,130,246,0.2);flex-shrink:0">
+          <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 2.5L4 7.5V16C4 21.5 9 26.2 15 27.5C21 26.2 26 21.5 26 16V7.5L15 2.5Z" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.95)" stroke-width="1.5"/>
+            <path d="M10.5 15L13.5 18.2L19.5 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:0">
+          <span style="font-size:2.8rem;font-weight:900;letter-spacing:-0.05em;color:var(--tp)">Archi</span><span style="font-size:2.8rem;font-weight:300;letter-spacing:-0.02em;color:var(--teal)">Policy</span>
+        </div>
+      </div>
+      <div class="lg-sub">Architecture de Controle d&rsquo;Acces Federe &mdash; Urgence de Foule</div>
+    </div>
+    <div style="font-size:0.78rem;font-weight:600;color:var(--ts);margin-bottom:0.7rem;text-align:center">Selectionnez votre profil</div>
+
+    <div class="pg-grid">
+      <div class="pc" style="--pc-col:#3b82f6" id="pc-ratp-admin" onclick="selectProfile('ratp-admin')">
+        <div class="pc-check">&#10003;</div>
+        <div class="pc-logo" style="background:rgba(59,130,246,0.15)">
+          <svg viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#009AA6"/><text x="50" y="63" font-family="Arial Black,sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">RATP</text></svg>
+        </div>
+        <div class="pc-name">RATP Admin</div>
+        <div class="pc-role" style="background:rgba(59,130,246,0.12);color:#3b82f6">SUPER-ADMIN &middot; Acces total</div>
+      </div>
+      <div class="pc" style="--pc-col:#3b82f6" id="pc-ratp-ops" onclick="selectProfile('ratp-ops')">
+        <div class="pc-check">&#10003;</div>
+        <div class="pc-logo" style="background:rgba(59,130,246,0.15)">
+          <svg viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#009AA6"/><text x="50" y="63" font-family="Arial Black,sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">RATP</text></svg>
+        </div>
+        <div class="pc-name">RATP Operateur</div>
+        <div class="pc-role" style="background:rgba(59,130,246,0.12);color:#3b82f6">OPERATEUR &middot; Surveillance</div>
+      </div>
+      <div class="pc" style="--pc-col:#a855f7" id="pc-idfm" onclick="selectProfile('idfm')">
+        <div class="pc-check">&#10003;</div>
+        <div class="pc-logo" style="background:rgba(168,85,247,0.15)">
+          <svg viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#6832B7"/><text x="50" y="42" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="white" text-anchor="middle">Ile-de-France</text><text x="50" y="66" font-family="Arial,sans-serif" font-size="17" font-weight="900" fill="white" text-anchor="middle">Mobilites</text></svg>
+        </div>
+        <div class="pc-name">IDFM</div>
+        <div class="pc-role" style="background:rgba(168,85,247,0.12);color:#a855f7">Gestion R&eacute;seau &middot; Vision globale</div>
+      </div>
+      <div class="pc" style="--pc-col:#ff4d5e" id="pc-secours" onclick="selectProfile('secours')">
+        <div class="pc-check">&#10003;</div>
+        <div class="pc-logo" style="background:rgba(255,77,94,0.15)">
+          <svg viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#CC2020"/><text x="50" y="37" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="white" text-anchor="middle">BRIGADE</text><text x="50" y="53" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="white" text-anchor="middle">SAPEURS</text><text x="50" y="70" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="white" text-anchor="middle">POMPIERS</text></svg>
+        </div>
+        <div class="pc-name">Chef Section BSPP</div>
+        <div class="pc-role" style="background:rgba(255,77,94,0.12);color:#ff4d5e">TERRAIN &middot; Acces limite</div>
+      </div>
+    </div>
+
+    <div class="lform">
+      <div class="lform-head">
+        <div class="lform-logo" id="selLogo"><span style="font-size:1.1rem">&#128100;</span></div>
+        <div><div class="lform-name" id="selName">Choisissez un profil</div><div class="lform-role" id="selRole">pour continuer</div></div>
+      </div>
+      <div>
+        <label class="inp-lbl">Identifiant</label>
+        <div class="inp-wrap">
+          <span class="inp-ico">&#128100;</span>
+          <input type="text" class="inp-f" id="loginUser" placeholder="Votre identifiant..." autocomplete="off">
+        </div>
+        <div class="inp-hint" id="hintUser">Selectionnez un profil ci-dessus</div>
+      </div>
+      <div style="margin-top:0.75rem">
+        <label class="inp-lbl">Mot de passe</label>
+        <div class="inp-wrap">
+          <span class="inp-ico">&#128273;</span>
+          <input type="password" class="inp-f" id="loginPass" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="off">
+        </div>
+        <div class="inp-hint" id="hintPass">Selectionnez un profil ci-dessus</div>
+      </div>
+      <button class="btn-login" onclick="doLogin()">Connexion securisee &#8594;</button>
+      <div class="lerr" id="loginError">&#9888; <span id="loginErrMsg">Identifiants incorrects</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <div class="topbar">
+    <div class="tb-logo">
+      <div class="tb-logo-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Shield shape -->
+          <path d="M9 1.5L2.5 4.5V9.5C2.5 13 5.5 15.8 9 16.5C12.5 15.8 15.5 13 15.5 9.5V4.5L9 1.5Z" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.9)" stroke-width="1.2"/>
+          <!-- Check / lock mark -->
+          <path d="M6.5 9L8.2 10.8L11.5 7.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="tb-logo-text">
+        <span class="tb-logo-archi">Archi</span><span class="tb-logo-policy">Policy</span>
+      </div>
+    </div>
+    <div class="tb-div"></div>
+    <div class="tb-user">
+      <div class="tb-ulogo" id="tbLogo"></div>
+      <div><div class="tb-uname" id="tbName"></div><div class="tb-urole" id="tbRole"></div></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="theme-btn" id="appThemeBtn" onclick="toggleTheme()">
+      <span id="appThemeIco">&#9728;</span>
+      <div class="toggle-track"><div class="toggle-thumb"></div></div>
+    </button>
+    <div class="tb-sep"></div>
+    <div class="state-pill normal" id="stateBtn" onclick="toggleEmergency()">
+      <div class="sdot g" id="sDot"></div><span id="sLbl">NORMAL</span>
+    </div>
+    <div class="tb-time" id="clock">--:--:--</div>
+    <button class="btn-logout-app" onclick="doLogout()">&#128274; D&#233;connexion</button>
+  </div>
+  <div class="app-layout">
+    <aside class="sidebar"><div id="sbItems"></div><div class="sb-foot">ArchiPolicy v2.1 &middot; T&eacute;l&eacute;com Paris</div></aside>
+    <main class="main"><div id="views"></div></main>
+  </div>
+</div>
+
+<script>
+var CU=null,isEmergency=false,accessGranted=false,cInt=null,cSecs=0;
+
+var USERS={
+  "ratp-admin":{login:"admin.ratp",pass:"ratp2025",name:"Martin LECLERC",role:"Super-Administrateur",org:"RATP",badge:"SUPER-ADMIN",color:"#3b82f6",
+    svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#009AA6"/><text x="50" y="63" font-family="Arial Black,sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">RATP</text></svg>',
+    nav:[{id:"overview",icon:"&#128202;",label:"Vue d'ensemble"},{id:"cameras",icon:"&#128249;",label:"Flux video",badge:2},{id:"sensors",icon:"&#128225;",label:"Capteurs"},{id:"heatmap",icon:"&#127754;",label:"Carte thermique"},{id:"policies",icon:"&#9881;",label:"Politiques PAP"},{id:"audit",icon:"&#128203;",label:"Journal d'audit"}]},
+  "ratp-ops":{login:"ops.ratp",pass:"ratp123",name:"Sophie BERNARD",role:"Operatrice surveillance",org:"RATP",badge:"OPERATEUR",color:"#3b82f6",
+    svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#009AA6"/><text x="50" y="63" font-family="Arial Black,sans-serif" font-size="36" font-weight="900" fill="white" text-anchor="middle">RATP</text></svg>',
+    nav:[{id:"overview",icon:"&#128202;",label:"Vue d'ensemble"},{id:"cameras",icon:"&#128249;",label:"Flux video",badge:2},{id:"sensors",icon:"&#128225;",label:"Capteurs"},{id:"heatmap",icon:"&#127754;",label:"Carte thermique"},{id:"audit",icon:"&#128203;",label:"Journal (lecture)"}]},
+  "idfm":{login:"coord.idfm",pass:"idfm2025",name:"Isabelle MORAN",role:"Gestion reseau",org:"IDFM",badge:"IDFM",color:"#a855f7",
+    svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#6832B7"/><text x="50" y="42" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="white" text-anchor="middle">Ile-de-France</text><text x="50" y="66" font-family="Arial,sans-serif" font-size="17" font-weight="900" fill="white" text-anchor="middle">Mobilites</text></svg>',
+    nav:[{id:"idfm-ov",icon:"&#128506;",label:"Vue globale reseau"},{id:"heatmap",icon:"&#127754;",label:"Affluence reseau"},{id:"aggregates",icon:"&#128200;",label:"Flux agreges"},{id:"scenarios",icon:"&#128680;",label:"Scenarios urgence"},{id:"audit",icon:"&#128203;",label:"Evenements systeme"}]},
+  "secours":{login:"durand.bspp",pass:"bspp2025",name:"Thomas DURAND",role:"Chef de section - Unite 12",org:"BSPP",badge:"TERRAIN",color:"#ff4d5e",
+    svg:'<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#CC2020"/><text x="50" y="37" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="white" text-anchor="middle">BRIGADE</text><text x="50" y="53" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="white" text-anchor="middle">SAPEURS</text><text x="50" y="70" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="white" text-anchor="middle">POMPIERS</text></svg>',
+    nav:[{id:"identity",icon:"&#128283;",label:"Mon identite DID"},{id:"request",icon:"&#128275;",label:"Demander un acces"},{id:"heatmap",icon:"&#127754;",label:"Zone intervention"},{id:"myaccesses",icon:"&#128193;",label:"Mes acces actifs"}]}
+};
+
+function toggleTheme(){
+  var html=document.documentElement;
+  var isDark=html.getAttribute("data-theme")==="dark";
+  var t=isDark?"light":"dark";
+  html.setAttribute("data-theme",t);
+  try{localStorage.setItem("acifo-theme",t);}catch(e){}
+  updateThemeIcons(t);
+}
+function updateThemeIcons(t){
+  var dark=t==="dark";
+  var ico=dark?"🌙":"☀️";
+  var el1=document.getElementById("loginIco"); if(el1)el1.textContent=ico;
+  var el2=document.getElementById("loginLbl"); if(el2)el2.textContent=dark?"Mode clair":"Mode sombre";
+  var el3=document.getElementById("appThemeIco"); if(el3)el3.textContent=ico;
+}
+(function(){
+  var saved="light"; try{saved=localStorage.getItem("acifo-theme")||"light";}catch(e){}
+  document.documentElement.setAttribute("data-theme",saved);
+  updateThemeIcons(saved);
+})();
+
+function tick(){var el=document.getElementById("clock");if(el)el.textContent=new Date().toLocaleTimeString("fr-FR",{hour12:false});}
+tick(); setInterval(tick,1000);
+
+function selectProfile(id){
+  document.querySelectorAll(".pc").forEach(function(c){c.classList.remove("sel");});
+  var el=document.getElementById("pc-"+id); if(el)el.classList.add("sel");
+  var u=USERS[id]; if(!u)return;
+  document.getElementById("selLogo").innerHTML=u.svg;
+  document.getElementById("selName").textContent=u.org+" — "+u.badge;
+  document.getElementById("selRole").textContent=u.role;
+  document.getElementById("hintUser").innerHTML="&#128161; Login: <span>"+u.login+"</span>";
+  document.getElementById("hintPass").innerHTML="&#128161; Mot de passe: <span>"+u.pass+"</span>";
+  document.getElementById("loginUser").value=u.login;
+  document.getElementById("loginPass").value=u.pass;
+}
+
+function doLogin(){
+  var user=document.getElementById("loginUser").value.trim();
+  var pass=document.getElementById("loginPass").value.trim();
+  var err=document.getElementById("loginError");
+  var found=null;
+  Object.keys(USERS).forEach(function(k){if(USERS[k].login===user&&USERS[k].pass===pass)found={id:k,data:USERS[k]};});
+  if(!found){err.classList.add("show");document.getElementById("loginErrMsg").textContent="Identifiants incorrects.";return;}
+  err.classList.remove("show");
+  CU=Object.assign({id:found.id},found.data);
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("app").style.display="block";
+  bootApp();
+}
+
+function doLogout(){
+  CU=null; isEmergency=false; accessGranted=false;
+  cleanupHeatmap();
+  leafletMap=null; hmMarkers={}; stationData={};
+  document.getElementById("loginScreen").style.display="flex";
+  document.getElementById("app").style.display="none";
+  document.getElementById("loginUser").value="";
+  document.getElementById("loginPass").value="";
+  document.querySelectorAll(".pc").forEach(function(c){c.classList.remove("sel");});
+  document.getElementById("selLogo").innerHTML='<span style="font-size:1.1rem">&#128100;</span>';
+  document.getElementById("selName").textContent="Choisissez un profil";
+  document.getElementById("selRole").textContent="pour continuer";
+  document.getElementById("hintUser").textContent="Selectionnez un profil ci-dessus";
+  document.getElementById("hintPass").textContent="Selectionnez un profil ci-dessus";
+  document.getElementById("views").innerHTML="";
+  document.getElementById("sbItems").innerHTML="";
+}
+document.addEventListener("keydown",function(e){if(e.key==="Enter"&&document.getElementById("loginScreen").style.display!=="none")doLogin();});
+
+function bootApp(){
+  var u=CU;
+  document.getElementById("tbLogo").innerHTML=u.svg;
+  document.getElementById("tbName").textContent=u.name;
+  document.getElementById("tbRole").innerHTML='<span style="color:'+u.color+'">'+u.badge+"</span> &middot; "+u.org;
+  var sb=document.getElementById("sbItems");
+  sb.innerHTML='<div class="sb-sec">Navigation</div>';
+  u.nav.forEach(function(item){
+    sb.innerHTML+='<button class="nav-it" id="nav-'+item.id+'" onclick="showView(\''+item.id+'\')"><span class="nav-ico">'+item.icon+"</span>"+item.label+(item.badge?'<span class="nav-badge">'+item.badge+"</span>":"")+"</button>";
+  });
+  renderViews();
+  showView(u.nav[0].id);
+}
+
+function renderViews(){
+  var c=document.getElementById("views"); c.innerHTML="";
+  var u=CU;
+  var isRatp=u.id.indexOf("ratp")===0, isAdmin=u.id==="ratp-admin", isIdfm=u.id==="idfm", isSec=u.id==="secours";
+
+  if(isRatp){
+    c.innerHTML+='<div class="view" id="view-overview"><div class="ph"><div><div class="pt">Tableau de bord RATP</div><div class="ps">Operationnel temps reel &middot; Souverainete totale des donnees</div></div>'+(isAdmin?'<button class="btn btn-d" onclick="toggleEmergency()">&#9889; Urgence</button>':'')+
+    '</div><div class="g4 mb1">'+
+    '<div class="scard"><div class="sc-glow" style="background:var(--blue)"></div><div class="sc-ico" style="background:var(--blue-dim)">&#128225;</div><div class="sc-lbl">Densite max.</div><div class="sc-val" style="color:var(--gold)" id="densMax">3.7</div><div class="sc-sub">p/m&sup2; &middot; Chatelet Q4 &middot; Seuil 4.0</div></div>'+
+    '<div class="scard"><div class="sc-glow" style="background:var(--coral)"></div><div class="sc-ico" style="background:var(--coral-dim)">&#9888;</div><div class="sc-lbl">Incidents actifs</div><div class="sc-val" style="color:var(--coral)">2</div><div class="sc-sub">Lignes 4 &amp; RER A</div></div>'+
+    '<div class="scard"><div class="sc-glow" style="background:var(--green)"></div><div class="sc-ico" style="background:var(--green-dim)">&#128249;</div><div class="sc-lbl">Cameras actives</div><div class="sc-val" style="color:var(--green)">847</div><div class="sc-sub">/856 total &middot; 9 HS</div></div>'+
+    '<div class="scard"><div class="sc-glow" style="background:var(--teal)"></div><div class="sc-ico" style="background:var(--teal-dim)">&#128272;</div><div class="sc-lbl">Acces tiers (24h)</div><div class="sc-val" style="color:var(--teal)" id="accCount">12</div><div class="sc-sub">11 PERMIT &middot; 1 DENY</div></div>'+
+    '</div><div class="g21 mb1">'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">&#128249; Flux video stations</span><span class="pill pg">En direct</span></div><div class="vid-grid" id="vidGrid"></div></div>'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">&#128225; Capteurs densite</span></div><div id="sensorList"></div></div>'+
+    '</div></div>';
+
+    c.innerHTML+='<div class="view" id="view-cameras"><div class="ph"><div><div class="pt">Surveillance Video</div><div class="ps">Acces RATP exclusif &middot; Flux proteges</div></div></div>'+
+    '<div class="abox info mb1"><span class="abox-ico">&#128274;</span><div class="abox-txt"><strong>Souverainete des donnees</strong>Ces flux ne sont jamais transmis directement. Les secours acces via PEP securise + decision PDP contextuelle.</div></div>'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">Toutes les cameras</span><span class="pill pb">847 actives</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.52rem" id="allCams"></div></div></div>';
+
+    c.innerHTML+='<div class="view" id="view-sensors"><div class="ph"><div><div class="pt">Capteurs de Densite</div><div class="ps">Seuil critique: 4.0 p/m&sup2; &rarr; declenchement EMERGENCY</div></div></div><div class="g3 mb1" id="sensorCards"></div></div>';
+
+    c.innerHTML+='<div class="view" id="view-audit"><div class="ph"><div><div class="pt">Journal d\'Audit &mdash; Ledger</div><div class="ps">Tracabilite immuable de tous les acces tiers</div></div></div>'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">Historique acces</span><span class="pill pg">Immuable</span></div>'+
+    '<div style="overflow-x:auto"><table class="dtab"><thead><tr><th>Horodatage</th><th>Acteur</th><th>Org.</th><th>Ressource</th><th>Contexte</th><th>Durée</th><th>Verdict</th><th>Politique</th><th>Justification</th></tr></thead><tbody id="auditBody"></tbody></table></div></div></div>';
+
+    if(isAdmin){
+      c.innerHTML += buildPapView();
+    }
+  } /* end if(isRatp) */
+
+  if(isIdfm){
+    c.innerHTML+='<div class="view" id="view-idfm-ov"><div class="ph"><div><div class="pt">Vue Globale IDFM</div><div class="ps">Donnees agreges uniquement &middot; Pas d\'acces aux flux sensibles</div></div></div>'+
+    '<div class="g4 mb1">'+
+    '<div class="scard"><div class="sc-ico" style="background:var(--violet-dim)">&#128694;</div><div class="sc-lbl">Voyageurs/heure</div><div class="sc-val" style="color:var(--violet)">2.4M</div><div class="sc-sub">+8% vs hier</div></div>'+
+    '<div class="scard"><div class="sc-ico" style="background:var(--gold-dim)">&#9888;</div><div class="sc-lbl">Lignes perturbees</div><div class="sc-val" style="color:var(--gold)">3</div><div class="sc-sub">L4 &middot; RER A &middot; L13</div></div>'+
+    '<div class="scard"><div class="sc-ico" style="background:var(--green-dim)">&#128279;</div><div class="sc-lbl">PDP connectes</div><div class="sc-val" style="color:var(--green)">14</div><div class="sc-sub">Tous operationnels</div></div>'+
+    '<div class="scard"><div class="sc-ico" style="background:var(--teal-dim)">&#9935;</div><div class="sc-lbl">Smart Contract</div><div id="scPill" style="margin-top:0.3rem;font-family:\'JetBrains Mono\',monospace;font-size:0.88rem;font-weight:700">—</div></div>'+
+    '</div><div class="g21 mb1">'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">&#128506; Reseau PDP</span><span class="pill pg">Temps reel</span></div><div class="netmap" id="netMap"><svg style="position:absolute;inset:0;width:100%;height:100%" id="netSvg"></svg><div id="netNodes" style="position:absolute;inset:0"></div></div></div>'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">&#128197; Evenements</span></div><div style="height:165px;overflow-y:auto"><div class="timeline" id="idfmTl"></div></div></div>'+
+    '</div><div class="card"><div class="card-hdr"><span class="card-ttl">&#128202; Flux agreges stations</span></div><div class="g3" id="stCards"></div></div></div>';
+
+    c.innerHTML+='<div class="view" id="view-aggregates"><div class="ph"><div><div class="pt">Flux Agreges Reseau</div><div class="ps">Donnees statistiques anonymisees</div></div></div>'+
+    '<div class="abox info mb1"><span class="abox-ico">&#8505;</span><div class="abox-txt"><strong>Niveau d\'acces IDFM</strong>Donnees agreges uniquement. Flux video et positions restent dans les silos RATP.</div></div>'+
+    '<div class="g3" id="aggCards"></div></div>';
+
+    c.innerHTML+='<div class="view" id="view-scenarios"><div class="ph"><div><div class="pt">Scenarios d\'Urgence</div><div class="ps">Plans valides &middot; Activation sur decision collegiale</div></div></div><div class="g3" id="scenCards"></div></div>';
+
+    c.innerHTML+='<div class="view" id="view-audit"><div class="ph"><div><div class="pt">Evenements Systeme</div><div class="ps">Journal global inter-acteurs</div></div></div><div class="card"><div class="card-hdr"><span class="card-ttl">Timeline</span></div><div class="timeline" id="auditTl"></div></div></div>';
+  }
+
+  if(isSec){
+    c.innerHTML+='<div class="view" id="view-identity"><div class="ph"><div><div class="pt">Mon Identite Numerique</div><div class="ps">Credential DID &middot; Verification automatique par le PDP</div></div></div>'+
+    '<div class="idcard">'+
+    '<div class="id-av">&#128104;&#8205;&#128658;</div>'+
+    '<div class="id-info" style="flex:1"><h3>DURAND Thomas</h3><p>Brigade de Sapeurs-Pompiers de Paris &middot; Chef de section &middot; Unite 12</p>'+
+    '<div class="id-did">DID:KEY:z6MkhFPPGT4xAJ8Wv9TRAe...4Xd9GmXp<span class="did-ok">&#10003; VERIFIE</span></div></div>'+
+    '<div style="text-align:right"><div style="font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">CREDENTIAL</div>'+
+    '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;color:var(--green);font-weight:700">VALIDE</div>'+
+    '<div style="margin-top:0.4rem"><span class="pill pr">BSPP-OPS-CHEF</span></div></div></div>'+
+    '<div class="g3"><div class="card" style="border-color:rgba(255,77,94,0.25)"><div class="card-hdr"><span class="card-ttl">&#127894; Droits &amp; Accreditations</span></div>'+
+    [["Donnees terrain agreges","TOUJOURS","pg"],["Capteurs densite","TOUJOURS","pg"],["Plans d\'evacuation","TOUJOURS","pg"],["Flux video stations","EMERGENCY ONLY","po"],["Position rames temps reel","EMERGENCY ONLY","po"],["Donnees individuelles voyageurs","JAMAIS","pr"]].map(function(row){return '<div class="sr"><span class="sr-n">'+row[0]+'</span><span class="pill '+row[2]+'" style="font-size:0.55rem">'+row[1]+'</span></div>';}).join('')+'</div>'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">&#128202; Etat systeme</span></div>'+
+    '<div style="text-align:center;padding:1.1rem"><div id="secIco" style="font-size:2.1rem;margin-bottom:0.4rem">&#128994;</div><div id="secTxt" style="font-family:\'JetBrains Mono\',monospace;font-size:0.88rem;font-weight:700;color:var(--green)">NORMAL</div>'+
+    '<div style="font-size:0.7rem;color:var(--ts);margin-top:0.4rem">Cliquez sur le badge en haut<br>pour simuler une urgence</div></div></div>'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">&#8987; Activite recente</span></div>'+
+    '<div class="timeline"><div class="tl-item"><div class="tl-dot ok"></div><div class="tl-time">14:22</div><div class="tl-msg">Connexion DID verifiee</div></div>'+
+    '<div class="tl-item"><div class="tl-dot info"></div><div class="tl-time">14:12</div><div class="tl-msg">Capteurs accordes (15min)</div></div>'+
+    '<div class="tl-item"><div class="tl-dot warn"></div><div class="tl-time">11:02</div><div class="tl-msg">Acces video accorde (urgence)</div></div>'+
+    '<div class="tl-item"><div class="tl-dot ok"></div><div class="tl-time">11:35</div><div class="tl-msg">Acces expire &middot; Trace ledger</div></div>'+
+    '</div></div></div></div>';
+
+    c.innerHTML+='<div class="view" id="view-request"><div class="ph"><div><div class="pt">Demande d\'Acces</div><div class="ps">PEP &rarr; PDP &rarr; Smart Contract &rarr; Decision automatique (&lt;500ms)</div></div></div>'+
+    '<div id="secEmergAlert" style="display:none"><div class="abox danger"><span class="abox-ico">&#128680;</span><div class="abox-txt"><strong>ETAT D\'URGENCE ACTIF</strong>Densite critique (4.2 p/m&sup2;). Acces video disponibles selon votre accreditation.</div></div></div>'+
+    '<div id="secNormAlert"><div class="abox warning"><span class="abox-ico">&#8505;</span><div class="abox-txt"><strong>MODE NORMAL</strong>Flux video inaccessibles. Activez l\'urgence (bouton en haut) pour elargir les acces.</div></div></div>'+
+    '<div class="g12">'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">&#128274; Formulaire de demande</span></div>'+
+    '<div class="fg"><label class="flbl">Type de donnees</label><select class="fctl" id="reqType" style="border-color:rgba(255,77,94,0.3)"><option>Flux video station (EMERGENCY requis)</option><option>Capteurs de densite</option><option>Plans d\'evacuation</option><option>Position rames</option></select></div>'+
+    '<div class="fg"><label class="flbl">Station cible</label><select class="fctl" id="reqStation" style="border-color:rgba(255,77,94,0.3)"><option>Chatelet &mdash; Les Halles</option><option>Saint-Lazare</option><option>Gare du Nord</option><option>Nation</option></select></div>'+
+    '<div class="fg"><label class="flbl">Justification operationnelle</label><select class="fctl" id="reqJustif" style="border-color:rgba(255,77,94,0.3)"><option>Urgence foule &mdash; intervention active</option><option>Reconnaissance zone</option><option>Coordination evacuation</option></select></div>'+
+    '<div class="fg"><label class="flbl">Duree</label><select class="fctl" id="reqDuree" style="border-color:rgba(255,77,94,0.3)"><option>15 minutes</option><option>30 minutes</option><option>1 heure</option></select></div>'+
+    '<button class="btn btn-d" style="width:100%" onclick="submitRequest()">&#9889; Envoyer au PEP</button>'+
+    '<div class="access-result" id="reqResult"></div></div>'+
+    '<div style="display:flex;flex-direction:column;gap:0.85rem">'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">&#128260; Flux de decision</span></div>'+
+    '<div class="flow-strip"><div class="fn"><div class="fn-ico">&#128650;</div><span class="fn-lbl">DEMANDEUR</span></div><div class="farr">&#9654;</div><div class="fn"><div class="fn-ico">&#128274;</div><span class="fn-lbl">PEP</span></div><div class="farr">&#9654;</div><div class="fn"><div class="fn-ico">&#129504;</div><span class="fn-lbl">PDP</span></div><div class="farr">&#9654;</div><div class="fn"><div class="fn-ico">&#9935;</div><span class="fn-lbl">SMART CT.</span></div><div class="farr">&#9654;</div><div class="fn" id="decFn"><div class="fn-ico" id="decIco">&#10067;</div><span class="fn-lbl" id="decLbl" style="color:var(--ts)">EN ATTENTE</span></div></div></div>'+
+    '<div class="card"><div class="card-hdr"><span class="card-ttl">&#128241; Log PDP</span></div>'+
+    '<div class="logp" id="rLog"><span><span class="lts">14:22:01</span> <span class="lsys">[SYSTEM]</span> Initialise. DID verifie.</span><br><span><span class="lts">14:22:01</span> <span class="lok2">[PDP] &#10003; DURAND.T confirme (BSPP-OPS-CHEF)</span></span><br><span><span class="lts">14:22:02</span> <span class="linf">[SMART_CT] Etat: NORMAL</span></span><br><span><span class="lts">14:22:02</span> <span class="lsys">[PEP] Pret.</span></span></div></div>'+
+    '<div id="dvCard" style="display:none"><div class="card" style="border-color:rgba(255,77,94,0.4)">'+
+    '<div class="card-hdr"><span class="card-ttl">&#128249; Flux accorde</span><span class="pill pr" id="cntPill">&#8987; --:--</span></div>'+
+    '<div class="vid-cell alert" style="height:112px">'+
+    '<canvas id="secCam"></canvas>'+
+    '<div class="vid-d dc" style="position:absolute;top:0.28rem;right:0.28rem">4.2 p/m&sup2;</div>'+
+    '<div class="vid-lbl"><span>CHATELET Q4 &middot; CAM-042</span><div class="rec"></div></div></div>'+
+    '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts);margin-top:0.42rem">Trace Ledger &middot; <span style="color:var(--teal)" id="accessId">—</span></div>'+
+    '<button class="btn btn-g btn-sm" style="margin-top:0.52rem" onclick="revokeAccess()">&#128274; Revoquer</button></div></div>'+
+    '</div></div></div>';
+
+    c.innerHTML+='<div class="view" id="view-myaccesses"><div class="ph"><div><div class="pt">Mes Acces Actifs</div><div class="ps">Acces temporaires &middot; Tous traces dans le ledger distribue</div></div></div>'+
+    '<div class="card" id="myAccCard"><div style="text-align:center;padding:2rem;color:var(--ts)"><div style="font-size:2rem;margin-bottom:0.5rem">&#128274;</div><div>Aucun acces actif.</div><div style="font-size:0.72rem;margin-top:0.28rem">Utilisez "Demander un acces" pour en creer un.</div></div></div></div>';
+  }
+
+  /* ── HEATMAP VIEW — ajoutée pour tous les rôles ── */
+  c.innerHTML += buildHeatmapViewHTML();
+}
+
+function updateScState(){
+  var el=document.getElementById("scPill");
+  if(el)el.innerHTML=isEmergency?'<span style="color:var(--coral);font-weight:700">&#128308; EMERGENCY</span>':'<span style="color:var(--green);font-weight:700">&#9679; NORMAL</span>';
+}
+
+function showView(id){
+  /* Nettoyer la carte si on quitte la vue heatmap */
+  if(id !== "heatmap") cleanupHeatmap();
+  document.querySelectorAll(".view").forEach(function(v){v.classList.remove("active");});
+  document.querySelectorAll(".nav-it").forEach(function(n){n.classList.remove("active");});
+  var v=document.getElementById("view-"+id); if(v)v.classList.add("active");
+  var n=document.getElementById("nav-"+id); if(n)n.classList.add("active");
+  if(id==="overview"&&CU&&CU.id!=="idfm")initRatpOv();
+  if(id==="cameras")initCameras();
+  if(id==="sensors")initSensors();
+  if(id==="audit")initAudit();
+  if(id==="policies") { papRefreshContext(); papInitRego(); setTimeout(papUpdateTestInput, 100); }
+  if(id==="idfm-ov")initIdfmOv();
+  if(id==="aggregates")initAgg();
+  if(id==="scenarios")initScen();
+  if(id==="heatmap")initHeatmap();
+  updateScState();
+}
+
+var CAM_DATA=[{name:"Chatelet Q4",d:3.7,alert:true},{name:"Chatelet Q1",d:2.1},{name:"RER A Quai E",d:1.4},{name:"Nation Q2",d:2.8},{name:"Montparnasse",d:1.1},{name:"Gare du Nord",d:2.2}];
+
+/* ══ FONCTIONS RATP / IDFM RÉINJECTÉES ══ */
+
+function buildSensorList(el){
+  if(!el)return;
+  [{n:"Chatelet Q4",v:3.7,pct:74,c:"var(--gold)"},{n:"Nation Q2",v:2.8,pct:56,c:"var(--gold)"},
+   {n:"Chatelet Q1",v:2.1,pct:42,c:"var(--teal)"},{n:"RER A E",v:1.4,pct:28,c:"var(--green)"},
+   {n:"Opera",v:0.9,pct:18,c:"var(--green)"}].forEach(function(s){
+    el.innerHTML+='<div class="sr"><span class="sr-n">'+s.n+'</span>'+
+      '<div class="sr-t"><div class="sr-f" style="width:'+s.pct+'%;background:'+s.c+'"></div></div>'+
+      '<span class="sr-v" style="color:'+s.c+'">'+s.v+'</span></div>';
+  });
+}
+
+function initSensors(){
+  var el=document.getElementById("sensorCards");
+  if(!el||el.dataset.init)return; el.dataset.init="1";
+  [{n:"Chatelet-Les Halles",d:3.7,pct:74,c:"var(--gold)"},
+   {n:"Gare du Nord",d:2.8,pct:56,c:"var(--gold)"},
+   {n:"Chatelet Q1",d:2.1,pct:42,c:"var(--teal)"},
+   {n:"Nation Q2",d:1.9,pct:38,c:"var(--green)"},
+   {n:"Saint-Lazare",d:1.8,pct:36,c:"var(--green)"},
+   {n:"Opera",d:0.9,pct:18,c:"var(--green)"}].forEach(function(s){
+    el.innerHTML+='<div class="scard"><div class="sc-lbl">'+s.n+'</div>'+
+      '<div class="sc-val" style="color:'+s.c+'">'+s.d+' <span style="font-size:0.75rem">p/m²</span></div>'+
+      '<div style="background:rgba(128,128,128,0.1);border-radius:4px;height:5px;margin:0.48rem 0">'+
+      '<div style="background:'+s.c+';height:5px;border-radius:4px;width:'+s.pct+'%"></div></div></div>';
+  });
+}
+
+function hexRgb(h){
+  var r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  return r+","+g+","+b;
+}
+
+function buildNetMap(){
+  var ns=[{l:"RATP PDP",x:20,y:30,c:"3b82f6"},{l:"IDFM PDP",x:50,y:15,c:"a855f7"},
+          {l:"BSPP",x:80,y:30,c:"ff4d5e"},{l:"SmartCT",x:50,y:55,c:"00e5cc"},
+          {l:"RATP L4",x:25,y:72,c:"3b82f6"},{l:"SAMU",x:75,y:72,c:"f59e0b"}];
+  var es=[["RATP PDP","SmartCT"],["IDFM PDP","SmartCT"],["BSPP","SmartCT"],
+          ["SmartCT","RATP L4"],["SmartCT","SAMU"]];
+  var svg=document.getElementById("netSvg"),wrap=document.getElementById("netNodes");
+  if(!svg||!wrap)return;
+  var NS="http://www.w3.org/2000/svg";
+  es.forEach(function(e){
+    var na=ns.find(function(n){return n.l===e[0];}),nb=ns.find(function(n){return n.l===e[1];});
+    var l=document.createElementNS(NS,"line");
+    l.setAttribute("x1",na.x+"%");l.setAttribute("y1",na.y+"%");
+    l.setAttribute("x2",nb.x+"%");l.setAttribute("y2",nb.y+"%");
+    l.setAttribute("stroke","rgba(128,128,128,0.15)");l.setAttribute("stroke-width","1");
+    l.setAttribute("stroke-dasharray","3,4");svg.appendChild(l);
+  });
+  ns.forEach(function(n){
+    var d=document.createElement("div");d.className="nn";
+    d.style.cssText="left:"+n.x+"%;top:"+n.y+"%";
+    d.innerHTML='<div class="nd" style="background:rgba('+hexRgb(n.c)+',0.15);border-color:#'+n.c+'">'+
+      '<span style="color:#'+n.c+'">&#9679;</span></div><div class="nl">'+n.l+"</div>";
+    wrap.appendChild(d);
+  });
+}
+
+function buildIdfmTl(){
+  var tl=document.getElementById("idfmTl");if(!tl)return;
+  [{t:"warn",time:"14:18",msg:"Densite critique Chatelet Q4 &mdash; 3.7 p/m²"},
+   {t:"info",time:"14:10",msg:"PDP BSPP connecte &mdash; DID verifie"},
+   {t:"ok",time:"13:55",msg:"Acces accorde SAMU &mdash; position rames (10min)"},
+   {t:"ok",time:"12:00",msg:"Politique ratp_access_v3.rego deployee"}].forEach(function(e){
+    tl.innerHTML+='<div class="tl-item"><div class="tl-dot '+e.t+'"></div>'+
+      '<div class="tl-time">'+e.time+'</div><div class="tl-msg">'+e.msg+'</div></div>';
+  });
+}
+
+function buildStCards(){
+  var el=document.getElementById("stCards");if(!el||el.dataset.init)return;el.dataset.init="1";
+  [{n:"Chatelet-Les Halles",d:3.7,pct:74,c:"var(--gold)"},
+   {n:"Gare du Nord",d:2.8,pct:56,c:"var(--gold)"},
+   {n:"Saint-Lazare",d:1.8,pct:36,c:"var(--green)"}].forEach(function(s){
+    el.innerHTML+='<div class="scard"><div class="sc-lbl">'+s.n+'</div>'+
+      '<div class="sc-val" style="color:'+s.c+';font-size:1.5rem">'+s.d+
+      ' <span style="font-size:0.75rem">p/m²</span></div>'+
+      '<div style="background:rgba(128,128,128,0.1);border-radius:4px;height:4px;margin:0.48rem 0">'+
+      '<div style="background:'+s.c+';height:4px;border-radius:4px;width:'+s.pct+'%"></div></div>'+
+      '<div class="sc-sub">Donnees agreges &middot; 5min</div></div>';
+  });
+}
+
+function initIdfmOv(){
+  updateScState();
+  var nm=document.getElementById("netMap");
+  if(nm&&!nm.dataset.init){nm.dataset.init="1";buildNetMap();buildIdfmTl();buildStCards();}
+}
+
+function initAgg(){
+  var el=document.getElementById("aggCards");if(!el||el.dataset.init)return;el.dataset.init="1";
+  [{n:"Ligne 4",v:"142K",c:"var(--violet)"},
+   {n:"RER A",v:"389K",c:"var(--blue)"},
+   {n:"Ligne 13",v:"98K",c:"var(--teal)"}].forEach(function(s){
+    el.innerHTML+='<div class="scard"><div class="sc-lbl">'+s.n+'</div>'+
+      '<div class="sc-val" style="color:'+s.c+'">'+s.v+'</div>'+
+      '<div class="sc-sub">voyageurs aujourd\'hui</div></div>';
+  });
+}
+
+function initScen(){
+  var el=document.getElementById("scenCards");if(!el||el.dataset.init)return;el.dataset.init="1";
+  [{id:"SC-01",n:"Evacuation station unique",desc:"Fermeture selective + deviation flux",c:"pv"},
+   {id:"SC-02",n:"Foule multi-stations",desc:"Coordination RATP + secours + IDFM",c:"po"},
+   {id:"SC-03",n:"Arret reseau partiel",desc:"Arret lignes + alerte prefecture",c:"pr"}].forEach(function(s){
+    el.innerHTML+='<div class="card"><div class="pill '+s.c+'" style="margin-bottom:0.62rem;font-size:0.58rem">'+s.id+'</div>'+
+      '<div style="font-size:0.88rem;font-weight:700;margin-bottom:0.22rem;color:var(--tp)">'+s.n+'</div>'+
+      '<div style="font-size:0.75rem;color:var(--ts);margin-bottom:0.72rem">'+s.desc+'</div>'+
+      '<button class="btn btn-g btn-sm" onclick="alert(\'Scenario \'+s.id)">Activer &rarr;</button></div>';
+  });
+}
+
+/* ══ FIN FONCTIONS RÉINJECTÉES ══ */
+
+function initRatpOv(){var vg=document.getElementById("vidGrid");if(vg&&!vg.dataset.init){vg.dataset.init="1";buildCams(vg,3);buildSensorList(document.getElementById("sensorList"));}}
+function initCameras(){var el=document.getElementById("allCams");if(el&&!el.dataset.init){el.dataset.init="1";buildCams(el,6);}}
+function buildCams(container,count){
+  var items=count===3?CAM_DATA.slice(0,3):CAM_DATA;
+  items.forEach(function(cam,i){
+    var dc=cam.d>=3.5?"dc":cam.d>=2.5?"dw":"dok";
+    var d=document.createElement("div");
+    d.className="vid-cell"+(cam.alert?" alert":"");
+    var uid="cv"+container.id+i;
+    d.innerHTML=
+      '<canvas id="'+uid+'"></canvas>'+
+      '<div class="vid-d '+dc+'">'+cam.d+' p/m\u00b2</div>'+
+      '<div class="vid-lbl"><span>'+cam.name+'</span><div class="rec"></div></div>';
+    container.appendChild(d);
+    setTimeout(function(sidx){ return function(){ animCam(uid,sidx); }; }(i), 100 + i*80);
+  });
+}
+
+/* Sources vidéo foule / metro libres de droits (Pixabay / Pexels embed) */
+
+var CAM_DATA_EXT=[{label:"CHATELET Q4",personCount:14,speed:1.1},{label:"CHATELET Q1",personCount:8,speed:0.9},{label:"RER A QUAI E",personCount:5,speed:0.8},{label:"NATION Q2",personCount:9,speed:1.0},{label:"MONTPARNASSE",personCount:4,speed:0.7},{label:"GARE DU NORD",personCount:10,speed:1.0}];
+var SKINS=["#FDBCB4","#F0A882","#D08050","#A0622A","#704020","#5A3010"];
+var SHIRTS=["#1e3a8a","#991b1b","#14532d","#4c1d95","#92400e","#1e40af","#dc2626","#059669","#7c3aed","#b45309","#374151","#0e7490","#be123c","#15803d","#0369a1","#ffffff","#1f2937"];
+var PANTS=["#1e293b","#374151","#1f2937","#0f172a","#1a1a2e","#18181b","#3b1f2b","#0c2340"];
+var SHOES=["#111827","#292524","#78350f","#1e3a8a","#7f1d1d"];
+var BAGS=[null,null,null,"#1e3a8a","#374151","#7c3aed","#92400e","#dc2626"];
+var HAIRS=["#1c0a00","#2c1810","#4a2800","#8B4513","#b5651d","#f5deb3","#808080","#1a1a1a"];
+
+function rng32(seed){var s=seed|0;return function(){s=Math.imul(s^(s>>>15),s|1);s^=s+Math.imul(s^(s>>>7),s|61);return((s^s>>>14)>>>0)/4294967296;};}
+
+function makePerson(rng,idx,totalW){
+  var dir=rng()>0.5?1:-1;
+  return{
+    x:rng()*totalW, lane:0.42+rng()*0.42, speed:(rng()*0.7+0.5)*dir, dir:dir,
+    phase:rng()*Math.PI*2, stepFreq:0.07+rng()*0.06,
+    skin:SKINS[Math.floor(rng()*SKINS.length)], shirt:SHIRTS[Math.floor(rng()*SHIRTS.length)],
+    pants:PANTS[Math.floor(rng()*PANTS.length)], shoes:SHOES[Math.floor(rng()*SHOES.length)],
+    hair:HAIRS[Math.floor(rng()*HAIRS.length)], bag:BAGS[Math.floor(rng()*BAGS.length)],
+    height:0.55+rng()*0.3, pausing:false, pauseTimer:0, pauseChance:rng()*0.003+0.001
+  };
+}
+
+function drawPerson(ctx,p,W,H){
+  var sc=(0.5+p.lane*0.6)*p.height;
+  var baseY=H*(0.40+p.lane*0.32);
+  var ph=H*0.30*sc;
+  var hw=ph*0.17;
+  var step=Math.sin(p.phase)*ph*0.10;
+  var rS=step,lS=-step;
+  ctx.save();
+  ctx.translate(p.x,baseY);
+  if(p.dir<0){ctx.scale(-1,1);}
+
+  /* Ombre */
+  ctx.fillStyle="rgba(0,0,0,0.20)";
+  ctx.beginPath();ctx.ellipse(0,2,ph*0.19,ph*0.05,0,0,Math.PI*2);ctx.fill();
+
+  /* Jambe droite */
+  var lw=hw*0.52,lh=ph*0.44;
+  ctx.fillStyle=p.pants;
+  ctx.save();ctx.translate(hw*0.38,-lh*0.05);ctx.rotate(rS*0.016);
+  ctx.fillRect(-lw/2,0,lw,lh);
+  ctx.fillStyle=p.shoes;ctx.fillRect(-lw*0.7,lh-ph*0.06,lw*1.5,ph*0.07);
+  ctx.restore();
+  /* Jambe gauche */
+  ctx.fillStyle=p.pants;
+  ctx.save();ctx.translate(-hw*0.38,-lh*0.05);ctx.rotate(lS*0.016);
+  ctx.fillRect(-lw/2,0,lw,lh);
+  ctx.fillStyle=p.shoes;ctx.fillRect(-lw*0.7,lh-ph*0.06,lw*1.5,ph*0.07);
+  ctx.restore();
+
+  /* Torse */
+  ctx.fillStyle=p.shirt;
+  ctx.beginPath();
+  ctx.moveTo(-hw*0.92,-ph*0.44);ctx.lineTo(hw*0.92,-ph*0.44);
+  ctx.lineTo(hw*0.65,-ph*0.05);ctx.lineTo(-hw*0.65,-ph*0.05);
+  ctx.closePath();ctx.fill();
+
+  /* Bras droit */
+  ctx.fillStyle=p.shirt;
+  ctx.save();ctx.translate(hw*0.88,-ph*0.40);ctx.rotate(-lS*0.022);
+  ctx.fillRect(-hw*0.34,0,hw*0.34*2,ph*0.30);
+  ctx.fillStyle=p.skin;ctx.beginPath();ctx.arc(0,ph*0.30+ph*0.03,hw*0.38,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+  /* Bras gauche */
+  ctx.fillStyle=p.shirt;
+  ctx.save();ctx.translate(-hw*0.88,-ph*0.40);ctx.rotate(-rS*0.022);
+  ctx.fillRect(-hw*0.34,0,hw*0.34*2,ph*0.30);
+  ctx.fillStyle=p.skin;ctx.beginPath();ctx.arc(0,ph*0.30+ph*0.03,hw*0.38,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  /* Cou */
+  ctx.fillStyle=p.skin;ctx.fillRect(-hw*0.25,-ph*0.57,hw*0.5,ph*0.15);
+
+  /* Tête */
+  var hr=hw*0.75;
+  ctx.fillStyle=p.skin;ctx.beginPath();ctx.ellipse(0,-ph*0.65,hr*0.84,hr,0,0,Math.PI*2);ctx.fill();
+
+  /* Cheveux */
+  ctx.fillStyle=p.hair;
+  ctx.beginPath();ctx.ellipse(0,-ph*0.72,hr*0.82,hr*0.56,0,Math.PI,Math.PI*2);ctx.fill();
+  ctx.fillRect(-hr*0.80,-ph*0.74,hr*0.22,hr*0.52);
+  ctx.fillRect(hr*0.58,-ph*0.74,hr*0.22,hr*0.52);
+
+  /* Yeux */
+  ctx.fillStyle="#222";
+  ctx.beginPath();ctx.arc(-hr*0.30,-ph*0.63,hr*0.11,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(hr*0.30,-ph*0.63,hr*0.11,0,Math.PI*2);ctx.fill();
+
+  /* Sac */
+  if(p.bag){
+    ctx.fillStyle=p.bag;
+    ctx.fillRect(hw*0.55,-ph*0.35,hw*0.55,ph*0.26);
+    ctx.strokeStyle=p.bag;ctx.lineWidth=hw*0.1;
+    ctx.beginPath();ctx.moveTo(hw*0.78,-ph*0.35);ctx.lineTo(-hw*0.55,-ph*0.44);ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawStation(ctx,W,H,label){
+  var flY=H*0.75;
+  /* Sol */
+  var fg=ctx.createLinearGradient(0,flY,0,H);
+  fg.addColorStop(0,"#2a2e3a");fg.addColorStop(1,"#181b22");
+  ctx.fillStyle=fg;ctx.fillRect(0,flY,W,H-flY);
+  /* Carrelage sol */
+  ctx.strokeStyle="rgba(255,255,255,0.05)";ctx.lineWidth=0.5;
+  for(var tx=0;tx<W;tx+=W/18){ctx.beginPath();ctx.moveTo(tx,flY);ctx.lineTo(tx,H);ctx.stroke();}
+  for(var ty2=flY;ty2<H;ty2+=(H-flY)/5){ctx.beginPath();ctx.moveTo(0,ty2);ctx.lineTo(W,ty2);ctx.stroke();}
+  /* Mur fond */
+  var wg=ctx.createLinearGradient(0,0,0,flY);
+  wg.addColorStop(0,"#1c2535");wg.addColorStop(0.4,"#263040");wg.addColorStop(1,"#1e2a38");
+  ctx.fillStyle=wg;ctx.fillRect(0,0,W,flY);
+  /* Carrelage mur */
+  ctx.strokeStyle="rgba(255,255,255,0.055)";ctx.lineWidth=0.5;
+  var tw=W/24,th=H*0.042;
+  for(var mx=0;mx<W;mx+=tw){ctx.beginPath();ctx.moveTo(mx,H*0.10);ctx.lineTo(mx,flY);ctx.stroke();}
+  for(var my=H*0.10;my<flY;my+=th){ctx.beginPath();ctx.moveTo(0,my);ctx.lineTo(W,my);ctx.stroke();}
+  /* Plafond */
+  ctx.fillStyle="#0d1420";ctx.fillRect(0,0,W,H*0.10);
+  /* Néons */
+  var nY=H*0.10;
+  for(var nl=0;nl<4;nl++){
+    var nlx=(nl+0.5)*W/4;
+    ctx.fillStyle="rgba(210,225,255,0.88)";ctx.fillRect(nlx-W*0.08,nY-2,W*0.16,3);
+    var hl=ctx.createRadialGradient(nlx,nY,0,nlx,nY,H*0.42);
+    hl.addColorStop(0,"rgba(180,210,255,0.10)");hl.addColorStop(1,"rgba(180,210,255,0)");
+    ctx.fillStyle=hl;ctx.fillRect(0,0,W,H*0.88);
+  }
+  /* Bandeau orange */
+  ctx.fillStyle="#c84800";ctx.fillRect(0,H*0.10,W,H*0.032);
+  /* Piliers */
+  [0.14,0.86].forEach(function(px){
+    ctx.fillStyle="#182030";ctx.fillRect(px*W-5,H*0.10,10,flY-H*0.10);
+    ctx.fillStyle="#003ca6";ctx.fillRect(px*W-5,H*0.132,10,H*0.055);
+  });
+  /* Panneau station */
+  var pw=W*0.36,pnh=H*0.082,pnx=(W-pw)/2,pny=H*0.127;
+  ctx.fillStyle="#003ca6";ctx.fillRect(pnx,pny,pw,pnh);
+  ctx.fillStyle="#ffffff";
+  ctx.font="bold "+Math.round(pnh*0.62)+"px Arial,sans-serif";
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(label||"CHATELET",W/2,pny+pnh/2);
+  /* Ligne jaune quai */
+  ctx.fillStyle="#f59e0b";ctx.fillRect(0,flY-H*0.018,W,H*0.018);
+  /* Train */
+  var tX=W*0.68,tW=W*0.40,tT=H*0.25,tB=flY;
+  ctx.fillStyle="#c8d0dc";ctx.fillRect(tX,tT,tW,tB-tT);
+  ctx.fillStyle="#003ca6";ctx.fillRect(tX,tT+(tB-tT)*0.38,tW,(tB-tT)*0.06);
+  [tX+10,tX+55].forEach(function(wx){
+    if(wx+36<W){
+      ctx.fillStyle="#1a2a3a";ctx.fillRect(wx,tT+(tB-tT)*0.15,36,(tB-tT)*0.25);
+      ctx.fillStyle="rgba(150,180,220,0.25)";ctx.fillRect(wx,tT+(tB-tT)*0.15,9,(tB-tT)*0.25);
+    }
+  });
+}
+
+var camSims={};
+function getCamSim(id,idx){
+  if(camSims[id])return camSims[id];
+  var ext=CAM_DATA_EXT[idx%CAM_DATA_EXT.length];
+  var gen=rng32(idx*137+42);
+  var persons=[];
+  for(var i=0;i<ext.personCount;i++)persons.push(makePerson(gen,i,640));
+  camSims[id]={persons:persons,ext:ext,label:ext.label};
+  return camSims[id];
+}
+
+function animCam(id,idx){
+  var cv=document.getElementById(id);if(!cv)return;
+  var W=640,H=360;
+  cv.width=W;cv.height=H;
+  cv.style.cssText="position:absolute;inset:0;width:100%;height:100%;pointer-events:none";
+  var ctx=cv.getContext("2d");
+  var cam=CAM_DATA[idx]||CAM_DATA[0];
+  var sim=getCamSim(id,idx);
+  var sp=sim.ext.speed||1.0;
+
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    drawStation(ctx,W,H,sim.label);
+    var sorted=sim.persons.slice().sort(function(a,b){return a.lane-b.lane;});
+    sorted.forEach(function(p){
+      if(p.pausing){p.pauseTimer--;if(p.pauseTimer<=0)p.pausing=false;}
+      else{
+        if(Math.random()<p.pauseChance){p.pausing=true;p.pauseTimer=Math.floor(Math.random()*80+25);}
+        p.x+=p.speed*sp*1.8;p.phase+=p.stepFreq*sp;
+        if(p.x>W+70){p.x=-70;p.dir=1;p.speed=Math.abs(p.speed);}
+        if(p.x<-70){p.x=W+70;p.dir=-1;p.speed=-Math.abs(p.speed);}
+        if(Math.random()<0.0005){p.speed*=-1;p.dir*=-1;}
+      }
+      drawPerson(ctx,p,W,H);
+    });
+    /* Scanlines */
+    ctx.fillStyle="rgba(0,0,0,0.04)";
+    for(var y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);
+    /* Vignette */
+    var vg=ctx.createRadialGradient(W/2,H/2,H*0.18,W/2,H/2,H*0.95);
+    vg.addColorStop(0,"rgba(0,0,0,0)");vg.addColorStop(1,"rgba(0,0,0,0.60)");
+    ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+    /* Timestamp */
+    var now=new Date();
+    var ts=now.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"})+"  "+now.toLocaleTimeString("fr-FR",{hour12:false});
+    var fs=Math.round(H*0.045);
+    ctx.font="bold "+fs+"px 'Courier New',monospace";
+    ctx.fillStyle="rgba(0,0,0,0.55)";ctx.fillRect(4,H-fs-8,ctx.measureText(ts).width+10,fs+6);
+    ctx.fillStyle="#00ff41";ctx.textAlign="left";ctx.textBaseline="alphabetic";ctx.fillText(ts,8,H-6);
+    /* Cam label */
+    var cl="CAM-"+String(idx+1).padStart(3,"0")+"  "+(cam?cam.name:"");
+    ctx.font="bold "+fs+"px 'Courier New',monospace";
+    ctx.fillStyle="rgba(0,0,0,0.55)";ctx.fillRect(4,4,ctx.measureText(cl).width+10,fs+6);
+    ctx.fillStyle="#fff";ctx.fillText(cl,8,fs+2);
+    /* REC */
+    ctx.fillStyle=(Math.floor(Date.now()/600)%2===0)?"#ff3333":"#660000";
+    ctx.beginPath();ctx.arc(W-36,12,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#fff";ctx.font="bold "+fs+"px 'Courier New',monospace";
+    ctx.textAlign="right";ctx.fillText("REC",W-6,fs+2);
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+
+function submitRequest(){ abacEvaluate(); }
+
+function showDataAccess(duree,aid){
+  accessGranted=true;
+  var dv=document.getElementById("dvCard");if(dv)dv.style.display="block";
+  animCam("secCam", 0);
+  updateMyAccesses(duree,aid);
+  var mins=duree.indexOf("15")>=0?15:duree.indexOf("30")>=0?30:60;
+  cSecs=mins*60;
+  if(cInt)clearInterval(cInt);
+  cInt=setInterval(function(){
+    cSecs--;
+    var m=String(Math.floor(cSecs/60)).padStart(2,"0"),s=String(cSecs%60).padStart(2,"0");
+    var p=document.getElementById("cntPill");if(p)p.textContent="⏱ "+m+":"+s;
+    if(cSecs<=0){clearInterval(cInt);revokeAccess();}
+  },1000);
+}
+function revokeAccess(){
+  accessGranted=false;
+  var dv=document.getElementById("dvCard");if(dv)dv.style.display="none";
+  clearInterval(cInt);
+  var el=document.getElementById("myAccCard");if(el)el.innerHTML='<div style="text-align:center;padding:2rem;color:var(--ts)"><div style="font-size:2rem;margin-bottom:0.5rem">&#128274;</div><div>Aucun acces actif.</div></div>';
+}
+function updateMyAccesses(duree,aid){
+  var el=document.getElementById("myAccCard");if(!el)return;
+  el.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:0.9rem"><div style="display:flex;align-items:center;gap:0.72rem"><div style="font-size:1.4rem">&#128249;</div><div><div style="font-size:0.83rem;font-weight:600;color:var(--tp)">Flux video Chatelet Q4</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:0.59rem;color:var(--teal)">'+aid+'</div><div style="font-size:0.7rem;color:var(--ts)">'+duree+' &middot; Trace ledger</div></div></div><button class="btn btn-d btn-sm" onclick="revokeAccess()">Revoquer</button></div>';
+}
+
+function toggleEmergency(){
+  isEmergency=!isEmergency;
+  var btn=document.getElementById("stateBtn"),dot=document.getElementById("sDot"),lbl=document.getElementById("sLbl");
+  if(btn){if(isEmergency){btn.className="state-pill emergency";}else{btn.className="state-pill normal";}}
+  if(dot){dot.className=isEmergency?"sdot r":"sdot g";}
+  if(lbl){lbl.textContent=isEmergency?"EMERGENCY":"NORMAL";}
+  var ea=document.getElementById("secEmergAlert"),na=document.getElementById("secNormAlert");
+  if(ea)ea.style.display=isEmergency?"block":"none";
+  if(na)na.style.display=isEmergency?"none":"block";
+  var si=document.getElementById("secIco"),st=document.getElementById("secTxt");
+  if(si)si.textContent=isEmergency?"🔴":"🟢";
+  if(st){st.textContent=isEmergency?"EMERGENCY":"NORMAL";st.style.color=isEmergency?"var(--coral)":"var(--green)";}
+  /* updateScState — safe call */
+  var scPill=document.getElementById("scPill");
+  if(scPill)scPill.innerHTML=isEmergency?'<span style="color:var(--coral);font-weight:700">🔴 EMERGENCY</span>':'<span style="color:var(--green);font-weight:700">● NORMAL</span>';
+  /* PAP matrix refresh — inline, no recursion */
+  var papCtxLbl=document.getElementById("papCtxLabel");
+  if(papCtxLbl)papCtxLbl.innerHTML=isEmergency?"&#128308; EMERGENCY":"&#128994; NORMAL";
+  var papCtxBox=document.getElementById("papCtxBox");
+  if(papCtxBox)papCtxBox.className="pap-ctx-box "+(isEmergency?"pap-ctx-emergency":"pap-ctx-normal");
+  var papMat=document.getElementById("papMatrix");
+  if(papMat)papMat.innerHTML=buildAbacMatrix();
+  if(!isEmergency&&accessGranted)revokeAccess();
+}
+function revokeAll(){ ABAC_AUDIT_LOG=[]; papRevokeAll(); alert("Tous les acces tiers revoques.\nEnregistre dans le ledger."); }
+function simulatePolicy(){ papTestPolicy(); }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   ARCHIPOLICY — MOTEUR ABAC + OPA SIMULÉ + PAP COMPLET
+   Politique-as-Code · Contrôle d'accès basé attributs · Audit ledger
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── Politiques ABAC (Policy-as-Code, structure OPA Rego simulée) ── */
+var PAP_POLICIES = [
+  {
+    id:"POL-001", name:"Flux vidéo EMERGENCY only", active:true, version:"v3.2",
+    package:"ratp.video_access",
+    rego:"package ratp.video_access\n\ndefault allow = false\n\nallow {\n  input.context.mode == \"EMERGENCY\"\n  input.subject.role == \"SECOURS\"\n  input.resource.type == \"camera\"\n}",
+    subject:  {role:"SECOURS", orgs:["BSPP","SAMU","SDIS"]},
+    resource: {type:"camera", sensitivity:"high"},
+    context:  {mode:"EMERGENCY"},
+    duration: "30 min max",
+    effect:"PERMIT",
+    reason:"Flux vidéo accessible aux secours uniquement en situation d'urgence déclarée"
+  },
+  {
+    id:"POL-002", name:"Capteurs densité — accès libre RATP/SECOURS", active:true, version:"v2.1",
+    package:"ratp.sensor_access",
+    rego:"package ratp.sensor_access\n\ndefault allow = false\n\nallow {\n  input.subject.role == \"SECOURS\"\n  input.resource.type == \"sensor\"\n}\n\nallow {\n  input.subject.org == \"RATP\"\n  input.resource.type == \"sensor\"\n}",
+    subject:  {role:["SECOURS","RATP_ADMIN","RATP_OPS"], orgs:["BSPP","SAMU","RATP"]},
+    resource: {type:"sensor", sensitivity:"medium"},
+    context:  {mode:"ANY"},
+    duration: "15 min",
+    effect:"PERMIT",
+    reason:"Données de densité accessibles en mode normal pour coordination terrain"
+  },
+  {
+    id:"POL-003", name:"Données agrégées IDFM uniquement", active:true, version:"v1.4",
+    package:"idfm.aggregated_access",
+    rego:"package idfm.aggregated_access\n\ndefault allow = false\n\nallow {\n  input.subject.org == \"IDFM\"\n  input.resource.sensitivity == \"low\"\n}",
+    subject:  {role:"IDFM", orgs:["IDFM"]},
+    resource: {type:["aggregated","plan"], sensitivity:"low"},
+    context:  {mode:"ANY"},
+    duration: "session",
+    effect:"PERMIT",
+    reason:"IDFM ne peut accéder qu'aux données agrégées et anonymisées"
+  },
+  {
+    id:"POL-004", name:"Administration PAP — RATP Admin seul", active:true, version:"v1.0",
+    package:"ratp.pap_admin",
+    rego:"package ratp.pap_admin\n\ndefault allow = false\n\nallow {\n  input.subject.role == \"RATP_ADMIN\"\n  input.resource.type == \"policy\"\n}",
+    subject:  {role:"RATP_ADMIN", orgs:["RATP"]},
+    resource: {type:"policy", sensitivity:"critical"},
+    context:  {mode:"ANY"},
+    duration: "session admin",
+    effect:"PERMIT",
+    reason:"Seul le Super-Admin RATP peut créer, modifier ou supprimer des politiques"
+  },
+  {
+    id:"POL-005", name:"Plans évacuation — accès NORMAL", active:true, version:"v2.0",
+    package:"ratp.evacuation_access",
+    rego:"package ratp.evacuation_access\n\ndefault allow = false\n\nallow {\n  input.subject.role == \"SECOURS\"\n  input.resource.type == \"plan\"\n}",
+    subject:  {role:"SECOURS", orgs:["BSPP","SAMU","SDIS"]},
+    resource: {type:"plan", sensitivity:"medium"},
+    context:  {mode:"ANY"},
+    duration: "session",
+    effect:"PERMIT",
+    reason:"Plans d'évacuation disponibles en permanence pour les secours accrédités"
+  },
+  {
+    id:"POL-006", name:"Position rames — DENY données individuelles voyageurs", active:true, version:"v1.0",
+    package:"ratp.privacy_deny",
+    rego:"package ratp.privacy_deny\n\ndefault deny = false\n\ndeny {\n  input.resource.type == \"personal_data\"\n}",
+    subject:  {role:"ANY"},
+    resource: {type:"personal_data", sensitivity:"critical"},
+    context:  {mode:"ANY"},
+    duration: "N/A",
+    effect:"DENY",
+    reason:"RGPD : données individuelles voyageurs interdites à tout acteur externe"
+  }
+];
+
+var PAP_POLICIES_ORIG = JSON.parse(JSON.stringify(PAP_POLICIES));
+var ABAC_AUDIT_LOG = [];
+var AUDIT_ID_CTR = 8800;
+
+/* ── Mapping ressource → type ABAC ── */
+function mapResourceType(typeStr) {
+  var s = typeStr.toLowerCase();
+  if (s.indexOf("vid") >= 0 || s.indexOf("cam") >= 0) return {type:"camera",   sensitivity:"high"};
+  if (s.indexOf("capteur") >= 0 || s.indexOf("dens") >= 0) return {type:"sensor",    sensitivity:"medium"};
+  if (s.indexOf("plan") >= 0 || s.indexOf("vacu") >= 0)    return {type:"plan",      sensitivity:"medium"};
+  if (s.indexOf("rame") >= 0 || s.indexOf("trafic") >= 0)  return {type:"transport", sensitivity:"medium"};
+  if (s.indexOf("agr") >= 0)                                return {type:"aggregated",sensitivity:"low"};
+  if (s.indexOf("polit") >= 0)                              return {type:"policy",    sensitivity:"critical"};
+  return {type:"other", sensitivity:"medium"};
+}
+
+/* ── Mapping profil utilisateur → attributs ABAC ── */
+function getSubjectAttrs() {
+  if (!CU) return {role:"UNKNOWN", org:"UNKNOWN", did:"N/A"};
+  var roleMap = {
+    "ratp-admin":"RATP_ADMIN","ratp-ops":"RATP_OPS",
+    "idfm":"IDFM","secours":"SECOURS"
+  };
+  return {
+    role: roleMap[CU.id] || "UNKNOWN",
+    org:  CU.org,
+    badge:CU.badge,
+    did:  "DID:KEY:z6Mkh..." + CU.id.slice(0,4).toUpperCase()
+  };
+}
+
+/* ── Moteur de décision ABAC (simule OPA Rego) ── */
+function abacDecide(subject, resource, context) {
+  var activePolicies = PAP_POLICIES.filter(function(p){ return p.active; });
+
+  /* 1. Vérifier DENY absolus d'abord */
+  for (var i = 0; i < activePolicies.length; i++) {
+    var p = activePolicies[i];
+    if (p.effect !== "DENY") continue;
+    var rTypes = Array.isArray(p.resource.type) ? p.resource.type : [p.resource.type];
+    if (rTypes.indexOf(resource.type) >= 0 || rTypes.indexOf("ANY") >= 0) {
+      return { decision:"DENY", policy:p, reason:p.reason, evaluated:{subject,resource,context} };
+    }
+  }
+
+  /* 2. Chercher un PERMIT applicable */
+  for (var j = 0; j < activePolicies.length; j++) {
+    var pol = activePolicies[j];
+    if (pol.effect !== "PERMIT") continue;
+
+    /* Vérif type ressource */
+    var pResTypes = Array.isArray(pol.resource.type) ? pol.resource.type : [pol.resource.type];
+    var resMatch = pResTypes.indexOf(resource.type) >= 0;
+    if (!resMatch) continue;
+
+    /* Vérif rôle */
+    var pRoles = Array.isArray(pol.subject.role) ? pol.subject.role : [pol.subject.role];
+    var roleMatch = pRoles.indexOf(subject.role) >= 0 || pRoles.indexOf("ANY") >= 0;
+    if (!roleMatch) {
+      /* Vérif org */
+      var pOrgs = pol.subject.orgs || [];
+      roleMatch = pOrgs.indexOf(subject.org) >= 0;
+    }
+    if (!roleMatch) {
+      return { decision:"DENY", policy:pol, reason:"Rôle " + subject.role + " non autorisé par " + pol.id, evaluated:{subject,resource,context} };
+    }
+
+    /* Vérif contexte */
+    var ctxMatch = (pol.context.mode === "ANY") ||
+                   (pol.context.mode === context.mode);
+    if (!ctxMatch) {
+      return { decision:"DENY", policy:pol, reason:"Mode " + context.mode + " requis: " + pol.context.mode + " — Policy: " + pol.id, evaluated:{subject,resource,context} };
+    }
+
+    return { decision:"PERMIT", policy:pol, reason:pol.reason, duration:pol.duration, evaluated:{subject,resource,context} };
+  }
+
+  return { decision:"DENY", policy:null, reason:"Aucune politique ne couvre cette demande", evaluated:{subject,resource,context} };
+}
+
+/* ── Évaluation ABAC complète avec log ── */
+function abacEvaluate() {
+  var typeEl    = document.getElementById("reqType");
+  var stationEl = document.getElementById("reqStation");
+  var dureeEl   = document.getElementById("reqDuree");
+  if (!typeEl) { console.warn("abacEvaluate: reqType not found"); return; }
+
+  var typeStr   = typeEl.value;
+  var station   = stationEl ? stationEl.value : "N/A";
+  var duree     = dureeEl   ? dureeEl.value   : "N/A";
+  var subject   = getSubjectAttrs();
+  var resource  = mapResourceType(typeStr);
+  var context   = { mode: isEmergency ? "EMERGENCY" : "NORMAL", station: station };
+
+  var log    = document.getElementById("rLog");
+  var result = document.getElementById("reqResult");
+  var decIco = document.getElementById("decIco");
+  var decLbl = document.getElementById("decLbl");
+  var t      = new Date().toLocaleTimeString("fr-FR",{hour12:false});
+
+  function addL(cls,txt){
+    if(log){ log.innerHTML += '<span><span class="lts">'+t+'</span> <span class="'+cls+'">'+txt+"</span></span><br>"; log.scrollTop=log.scrollHeight; }
+  }
+
+  addL("lsys","[PEP] Requête interceptée → "+typeStr+" · "+station);
+  setTimeout(function(){addL("lsys","[PEP] Transmission au PDP local OPA...");},400);
+  setTimeout(function(){addL("lok2","[PDP] ✓ DID vérifié: "+subject.did+" ("+subject.role+")");},800);
+  setTimeout(function(){addL("lsys","[PDP] Lecture politiques PAP actives ("+PAP_POLICIES.filter(function(p){return p.active;}).length+" règles)...");},1200);
+  setTimeout(function(){addL("linf","[SMART_CT] Contexte: "+context.mode+" · Station: "+context.station);},1600);
+  setTimeout(function(){
+    addL("lsys","[OPA] Évaluation ABAC → subject.role="+subject.role+" · resource.type="+resource.type+" · context.mode="+context.mode);
+  },2000);
+
+  setTimeout(function(){
+    var dec = abacDecide(subject, resource, context);
+    var aid = "ACC-" + (++AUDIT_ID_CTR);
+    var ts  = new Date();
+
+    /* Ajout au ledger d'audit */
+    ABAC_AUDIT_LOG.unshift({
+      id:aid, ts:ts, actor:CU ? CU.name : "N/A", org:subject.org,
+      role:subject.role, resource:typeStr, station:station,
+      resType:resource.type, sensitivity:resource.sensitivity,
+      mode:context.mode, decision:dec.decision,
+      policy:dec.policy ? dec.policy.id : "NONE",
+      policyName:dec.policy ? dec.policy.name : "—",
+      reason:dec.reason, duration:duree
+    });
+
+    if (dec.decision === "PERMIT") {
+      addL("lok2","[PDP/OPA] ✓ PERMIT · Règle: "+(dec.policy?dec.policy.id:"—")+" · Durée: "+duree+" · "+aid);
+      if(decIco) decIco.textContent="✅";
+      if(decLbl){ decLbl.textContent="PERMIT"; decLbl.style.color="var(--green)"; }
+      if(result){
+        result.className="access-result show granted";
+        result.innerHTML =
+          "<strong>✓ PERMIT — "+aid+"</strong>\n"+
+          "Règle appliquée : "+(dec.policy?dec.policy.id+" · "+dec.policy.name:"—")+"\n"+
+          "Raison : "+dec.reason+"\n"+
+          "Attributs : role="+subject.role+" | ressource="+resource.type+" ("+resource.sensitivity+") | mode="+context.mode+"\n"+
+          "Durée accordée : "+duree+" · Tracé dans le Ledger";
+      }
+      document.getElementById("accessId") && (document.getElementById("accessId").textContent = aid);
+      if (resource.type === "camera") showDataAccess(duree, aid);
+    } else {
+      addL("lerr2","[PDP/OPA] ✗ DENY · "+(dec.policy?dec.policy.id:"AUCUNE POLITIQUE")+" · "+dec.reason);
+      if(decIco) decIco.textContent="❌";
+      if(decLbl){ decLbl.textContent="DENY"; decLbl.style.color="var(--coral)"; }
+      if(result){
+        result.className="access-result show denied";
+        result.innerHTML =
+          "<strong>✗ DENY — "+aid+"</strong>\n"+
+          "Règle appliquée : "+(dec.policy?dec.policy.id+" · "+dec.policy.name:"Aucune politique applicable")+"\n"+
+          "Raison : "+dec.reason+"\n"+
+          "Attributs évalués : role="+subject.role+" | ressource="+resource.type+" | mode="+context.mode+"\n"+
+          "Action requise : "+(context.mode==="NORMAL"?"Déclarez une urgence pour élargir les accès":"Vérifiez votre accréditation");
+      }
+    }
+    /* Rafraîchir la vue audit si ouverte */
+    refreshAuditIfOpen();
+  }, 2500);
+}
+
+/* ── Constructeur de la vue PAP ── */
+
+/* ═══════════════════════════════════════════════════════════
+   PAP — POLICY ADMINISTRATION POINT — ÉCRAN COMPLET
+   ArchiPolicy v2.1 · Telecom Paris · MS ADE 2025-2026
+═══════════════════════════════════════════════════════════ */
+
+/* ── Historique des modifications PAP ── */
+var PAP_HISTORY = [
+  { ts: new Date(Date.now()-3600000), action:"CREATE",  polId:"POL-001", user:"LECLERC M. (RATP_ADMIN)", detail:"Création politique flux vidéo EMERGENCY" },
+  { ts: new Date(Date.now()-7200000), action:"MODIFY",  polId:"POL-002", user:"LECLERC M. (RATP_ADMIN)", detail:"Ajout rôle RATP_OPS aux capteurs" },
+  { ts: new Date(Date.now()-86400000),action:"DEPLOY",  polId:"POL-003", user:"LECLERC M. (RATP_ADMIN)", detail:"Déploiement vers PDP IDFM" },
+  { ts: new Date(Date.now()-90000000),action:"DISABLE", polId:"POL-006", user:"LECLERC M. (RATP_ADMIN)", detail:"Désactivation temporaire RGPD audit" },
+  { ts: new Date(Date.now()-93600000),action:"CREATE",  polId:"POL-005", user:"LECLERC M. (RATP_ADMIN)", detail:"Création politique plans évacuation" }
+];
+
+var PAP_EDIT_IDX = -1; /* index de la règle en cours de modification (-1 = nouvelle) */
+
+function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+/* ── Builder principal de la vue ── */
+function buildPapView() {
+  var nActive = PAP_POLICIES.filter(function(p){return p.active;}).length;
+  var nPermit = ABAC_AUDIT_LOG.filter(function(l){return l.decision==="PERMIT";}).length;
+  var nDeny   = ABAC_AUDIT_LOG.filter(function(l){return l.decision==="DENY";}).length;
+  var em      = isEmergency;
+
+  return (
+    '<div class="view" id="view-policies">' +
+
+    /* ── HEADER ── */
+    '<div class="ph">' +
+      '<div>' +
+        '<div class="pt">&#9881; Gouvernance PAP</div>' +
+        '<div class="ps">Policy Administration Point &middot; ABAC &middot; OPA Rego &middot; R&eacute;serv&eacute; Super-Admin RATP</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:0.5rem;align-items:center">' +
+        '<button class="btn btn-d btn-sm" onclick="toggleEmergency()">&#9889; Basculer &eacute;tat</button>' +
+        '<button class="btn btn-p btn-sm" onclick="papOpenForm(-1)">&#43; Nouvelle r&egrave;gle</button>' +
+      '</div>' +
+    '</div>' +
+
+    /* ── BANDEAU CONTEXTE GLOBAL ── */
+    '<div id="papCtxBox" class="pap-ctx-box ' + (em ? 'pap-ctx-emergency' : 'pap-ctx-normal') + '">' +
+      '<div style="display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap">' +
+        '<div>' +
+          '<div class="pap-ctx-title" id="papCtxLabel">' + (em ? '&#128308; EMERGENCY' : '&#128994; NORMAL') + '</div>' +
+          '<div class="pap-ctx-sub">Contexte Smart Contract actuel — impact imm&eacute;diat sur toutes les d&eacute;cisions PDP</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-left:auto">' +
+          '<div class="pap-ctx-stat"><div class="pap-ctx-stat-val" style="color:' + (em ? 'var(--coral)' : 'var(--green)') + '">' + (em ? '&#128308; Urgence' : '&#128994; Standard') + '</div><div class="pap-ctx-stat-lbl">R&eacute;gime actif</div></div>' +
+          '<div class="pap-ctx-stat"><div class="pap-ctx-stat-val" id="papCountActive" style="color:var(--blue)">' + nActive + '</div><div class="pap-ctx-stat-lbl">Politiques actives</div></div>' +
+          '<div class="pap-ctx-stat"><div class="pap-ctx-stat-val" id="papPermitCount" style="color:var(--green)">' + nPermit + '</div><div class="pap-ctx-stat-lbl">PERMIT session</div></div>' +
+          '<div class="pap-ctx-stat"><div class="pap-ctx-stat-val" id="papDenyCount" style="color:var(--coral)">' + nDeny + '</div><div class="pap-ctx-stat-lbl">DENY session</div></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="pap-ctx-impact">' +
+        '<span style="font-weight:700">Impact sur les acc&egrave;s :</span>&nbsp;' +
+        (em
+          ? 'Mode EMERGENCY actif — POL-001 d&eacute;clench&eacute;e : flux vid&eacute;o <strong>ouverts</strong> aux secours accr&eacute;dit&eacute;s BSPP/SAMU. D&eacute;cision PDP transmise en &lt;100ms.'
+          : 'Mode NORMAL — POL-001 bloqu&eacute;e : flux vid&eacute;o <strong>inaccessibles</strong> aux secours. Seuls capteurs et plans d&apos;&eacute;vacuation disponibles.') +
+      '</div>' +
+    '</div>' +
+
+    /* ── FORMULAIRE CREATE / EDIT ── */
+    '<div id="papFormCard" class="card mb1" style="display:none;border:2px solid var(--teal)">' +
+      '<div class="card-hdr" style="margin-bottom:0.85rem">' +
+        '<span class="card-ttl" id="papFormTitle">&#43; Nouvelle r&egrave;gle d&apos;acc&egrave;s</span>' +
+        '<button class="btn btn-g btn-sm" onclick="papCloseForm()">&#10005; Fermer</button>' +
+      '</div>' +
+
+      /* Ligne 1 */
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">' +
+        '<div>' +
+          '<label class="form-label">ID r&egrave;gle</label>' +
+          '<input type="text" class="form-ctrl" id="fPolId" placeholder="Auto-g&eacute;n&eacute;r&eacute;" readonly style="opacity:0.6">' +
+        '</div>' +
+        '<div>' +
+          '<label class="form-label">Nom de la politique</label>' +
+          '<input type="text" class="form-ctrl" id="fPolName" placeholder="Ex: Acc&egrave;s cam&eacute;ra urgence BSPP">' +
+        '</div>' +
+        '<div>' +
+          '<label class="form-label">Effet / D&eacute;cision</label>' +
+          '<select class="form-ctrl" id="fPolEffect" onchange="papUpdateRego()">' +
+            '<option value="PERMIT">&#10003; PERMIT — Autoriser</option>' +
+            '<option value="DENY">&#10007; DENY — Refuser</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+
+      /* Ligne 2 */
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">' +
+        '<div>' +
+          '<label class="form-label">R&ocirc;le acteur</label>' +
+          '<select class="form-ctrl" id="fPolRole" onchange="papUpdateRego()">' +
+            '<option value="SECOURS">SECOURS (BSPP/SAMU)</option>' +
+            '<option value="RATP_ADMIN">RATP_ADMIN</option>' +
+            '<option value="RATP_OPS">RATP_OPS</option>' +
+            '<option value="IDFM">IDFM</option>' +
+            '<option value="ANY">TOUS (ANY)</option>' +
+          '</select>' +
+        '</div>' +
+        '<div>' +
+          '<label class="form-label">Ressource cible</label>' +
+          '<select class="form-ctrl" id="fPolRes" onchange="papUpdateRego()">' +
+            '<option value="camera">Flux vid&eacute;o (camera)</option>' +
+            '<option value="sensor">Capteurs densit&eacute; (sensor)</option>' +
+            '<option value="plan">Plans &eacute;vacuation (plan)</option>' +
+            '<option value="aggregated">Donn&eacute;es agr&eacute;g&eacute;es</option>' +
+            '<option value="transport">Position rames</option>' +
+            '<option value="policy">Politiques PAP</option>' +
+            '<option value="personal_data">Donn&eacute;es perso (RGPD)</option>' +
+          '</select>' +
+        '</div>' +
+        '<div>' +
+          '<label class="form-label">Contexte requis</label>' +
+          '<select class="form-ctrl" id="fPolCtx" onchange="papUpdateRego()">' +
+            '<option value="ANY">NORMAL et EMERGENCY</option>' +
+            '<option value="EMERGENCY">EMERGENCY uniquement</option>' +
+            '<option value="NORMAL">NORMAL uniquement</option>' +
+          '</select>' +
+        '</div>' +
+        '<div>' +
+          '<label class="form-label">Dur&eacute;e max</label>' +
+          '<select class="form-ctrl" id="fPolDur">' +
+            '<option value="15 min">15 minutes</option>' +
+            '<option value="30 min">30 minutes</option>' +
+            '<option value="1 heure">1 heure</option>' +
+            '<option value="session">Session</option>' +
+            '<option value="N/A">N/A (DENY)</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+
+      /* Ligne 3 — Zone + Justification */
+      '<div style="display:grid;grid-template-columns:1fr 2fr;gap:0.75rem;margin-bottom:0.85rem">' +
+        '<div>' +
+          '<label class="form-label">Station / Zone</label>' +
+          '<select class="form-ctrl" id="fPolZone">' +
+            '<option value="ALL">Toutes stations</option>' +
+            '<option value="chatelet">Ch&acirc;telet-Les Halles</option>' +
+            '<option value="nord">Gare du Nord</option>' +
+            '<option value="lazare">Saint-Lazare</option>' +
+            '<option value="nation">Nation</option>' +
+            '<option value="defense">La D&eacute;fense</option>' +
+          '</select>' +
+        '</div>' +
+        '<div>' +
+          '<label class="form-label">Justification m&eacute;tier</label>' +
+          '<input type="text" class="form-ctrl" id="fPolReason" placeholder="Ex: RGPD art.6 — donn&eacute;es sensibles &mdash; acc&egrave;s conditionnel urgence">' +
+        '</div>' +
+      '</div>' +
+
+      /* Aperçu Rego live */
+      '<div style="margin-bottom:0.85rem">' +
+        '<label class="form-label">&#128196; Aperçu code Rego g&eacute;n&eacute;r&eacute; (OPA)</label>' +
+        '<div id="fRegoPreview" class="code-block" style="font-size:0.6rem;line-height:1.7;white-space:pre;min-height:80px;border:1.5px solid var(--teal)"></div>' +
+      '</div>' +
+
+      '<div style="display:flex;gap:0.5rem">' +
+        '<button class="btn btn-p" onclick="papSavePolicy()">&#10003; Enregistrer et d&eacute;ployer</button>' +
+        '<button class="btn btn-g" onclick="papCloseForm()">Annuler</button>' +
+      '</div>' +
+    '</div>' +
+
+    /* ── TABLEAU DES RÈGLES ── */
+    '<div class="card mb1">' +
+      '<div class="card-hdr">' +
+        '<span class="card-ttl">&#128204; R&egrave;gles ABAC actives — Policy-as-Code</span>' +
+        '<span class="pill pt2" style="font-size:0.6rem">' + nActive + '/' + PAP_POLICIES.length + ' actives</span>' +
+      '</div>' +
+      '<div id="papPolicyTable" style="overflow-x:auto">' + buildPapTable() + '</div>' +
+    '</div>' +
+
+    /* ── TESTEUR + REGO ── */
+    '<div class="g2 mb1">' +
+
+      /* Testeur ABAC */
+      '<div class="card">' +
+        '<div class="card-hdr"><span class="card-ttl">&#9654; Simulateur de d&eacute;cision PDP</span><span class="pill pg" style="font-size:0.6rem">OPA Engine</span></div>' +
+        '<div class="form-group"><label class="form-label">R&ocirc;le acteur</label>' +
+          '<select class="form-ctrl" id="papTestRole">' +
+            '<option value="SECOURS">SECOURS (BSPP)</option>' +
+            '<option value="RATP_ADMIN">RATP_ADMIN</option>' +
+            '<option value="RATP_OPS">RATP_OPS</option>' +
+            '<option value="IDFM">IDFM</option>' +
+          '</select></div>' +
+        '<div class="form-group"><label class="form-label">Ressource demand&eacute;e</label>' +
+          '<select class="form-ctrl" id="papTestRes">' +
+            '<option value="camera">Flux vid&eacute;o (camera)</option>' +
+            '<option value="sensor">Capteurs densit&eacute;</option>' +
+            '<option value="plan">Plans &eacute;vacuation</option>' +
+            '<option value="aggregated">Donn&eacute;es agr&eacute;g&eacute;es</option>' +
+            '<option value="policy">Politiques PAP</option>' +
+            '<option value="personal_data">Donn&eacute;es perso</option>' +
+          '</select></div>' +
+        '<div class="form-group"><label class="form-label">Contexte Smart Contract</label>' +
+          '<select class="form-ctrl" id="papTestCtx">' +
+            '<option value="NORMAL">&#128994; NORMAL</option>' +
+            '<option value="EMERGENCY">&#128308; EMERGENCY</option>' +
+          '</select></div>' +
+        '<button class="btn btn-p" style="width:100%;margin-bottom:0.75rem" onclick="papRunTest()">&Eacute;valuer &rarr; D&eacute;cision PDP</button>' +
+
+        /* Entrée OPA simulée */
+        '<div style="margin-bottom:0.6rem">' +
+          '<label class="form-label">Input OPA (JSON)</label>' +
+          '<div id="papTestInput" class="code-block" style="font-size:0.6rem;white-space:pre;min-height:60px;color:var(--muted2)">Choisissez les param&egrave;tres ci-dessus...</div>' +
+        '</div>' +
+
+        '<div id="papTestResult" style="display:none"></div>' +
+      '</div>' +
+
+      /* Afficheur Rego */
+      '<div class="card">' +
+        '<div class="card-hdr">' +
+          '<span class="card-ttl">&#128196; Code Rego — OPA</span>' +
+          '<span class="pill pt2" style="font-size:0.6rem" id="regoPolId">POL-001</span>' +
+        '</div>' +
+        '<div id="regoDisplay" class="code-block" style="font-size:0.59rem;line-height:1.7;height:200px;overflow-y:auto;white-space:pre"></div>' +
+        '<div style="margin-top:0.6rem;display:flex;flex-wrap:wrap;gap:0.22rem" id="regoBtns"></div>' +
+      '</div>' +
+    '</div>' +
+
+    /* ── MATRICE ── */
+    '<div class="card mb1">' +
+      '<div class="card-hdr"><span class="card-ttl">&#128272; Matrice d\'acc&egrave;s — Qui voit quoi selon le contexte</span></div>' +
+      '<div id="papMatrix">' + buildAbacMatrix() + '</div>' +
+    '</div>' +
+
+    /* ── HISTORIQUE ── */
+    '<div class="card">' +
+      '<div class="card-hdr"><span class="card-ttl">&#128336; Historique des modifications PAP</span><span class="pill pb" style="font-size:0.6rem">' + PAP_HISTORY.length + ' &eacute;v&eacute;nements</span></div>' +
+      '<div id="papHistoryList">' + buildPapHistory() + '</div>' +
+    '</div>' +
+
+    '</div>'
+  );
+}
+
+/* ── Tableau des politiques ── */
+function buildPapTable() {
+  var rows = PAP_POLICIES.map(function(p, i) {
+    var vc  = p.effect === "PERMIT" ? "pg" : "pr";
+    var act = p.active
+      ? '<button class="btn btn-g btn-sm" onclick="papTogglePolicy('+i+')" style="color:var(--green);border-color:rgba(16,185,129,0.3);font-size:0.62rem;padding:0.2rem 0.5rem">&#9679; Actif</button>'
+      : '<button class="btn btn-g btn-sm" onclick="papTogglePolicy('+i+')" style="color:var(--muted2);font-size:0.62rem;padding:0.2rem 0.5rem">&#9711; Inactif</button>';
+    var subj = Array.isArray(p.subject.role) ? p.subject.role.join(", ") : p.subject.role;
+    var res  = Array.isArray(p.resource.type) ? p.resource.type.join(", ") : p.resource.type;
+    var zone = p.zone || "ALL";
+    return '<tr>' +
+      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:0.64rem;color:var(--teal);white-space:nowrap">' + p.id + '</td>' +
+      '<td style="font-size:0.76rem;font-weight:600;max-width:160px">' + p.name + '</td>' +
+      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:0.63rem">' + subj + '</td>' +
+      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:0.63rem">' + res + '</td>' +
+      '<td><span style="font-family:\'JetBrains Mono\',monospace;font-size:0.61rem;color:' + (p.context.mode==='EMERGENCY'?'var(--coral)':'var(--ts)') + '">' + p.context.mode + '</span></td>' +
+      '<td style="font-size:0.68rem;color:var(--ts)">' + zone + '</td>' +
+      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:0.63rem;color:var(--ts)">' + (p.duration || '—') + '</td>' +
+      '<td><span class="pill ' + vc + '">' + p.effect + '</span></td>' +
+      '<td>' + act + '</td>' +
+      '<td>' +
+        '<div style="display:flex;gap:0.25rem">' +
+          '<button class="btn btn-g btn-sm" onclick="papOpenForm('+i+')" style="font-size:0.6rem;padding:0.2rem 0.45rem" title="Modifier">&#9998;</button>' +
+          '<button class="btn btn-g btn-sm" onclick="papShowRego(\''+p.id+'\')" style="font-size:0.6rem;padding:0.2rem 0.45rem" title="Voir Rego">&#60;/&#62;</button>' +
+          '<button class="btn btn-g btn-sm" onclick="papDeletePolicy('+i+')" style="font-size:0.6rem;padding:0.2rem 0.45rem;color:var(--coral);border-color:rgba(255,77,94,0.3)" title="Supprimer">&#128465;</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  return '<table style="width:100%;border-collapse:collapse;font-size:0.74rem">' +
+    '<thead><tr style="border-bottom:2px solid var(--border)">' +
+      '<th style="padding:0.48rem 0.6rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts);white-space:nowrap">ID</th>' +
+      '<th style="padding:0.48rem 0.6rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">NOM</th>' +
+      '<th style="padding:0.48rem 0.6rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">RÔLE</th>' +
+      '<th style="padding:0.48rem 0.6rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">RESSOURCE</th>' +
+      '<th style="padding:0.48rem 0.6rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">CONTEXTE</th>' +
+      '<th style="padding:0.48rem 0.6rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">ZONE</th>' +
+      '<th style="padding:0.48rem 0.6rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">DURÉE</th>' +
+      '<th style="padding:0.48rem 0.6rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">EFFET</th>' +
+      '<th style="padding:0.48rem 0.6rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">STATUT</th>' +
+      '<th style="padding:0.48rem 0.6rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">ACTIONS</th>' +
+    '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+  '</table>';
+}
+
+/* ── Générateur Rego live ── */
+function generateRego(role, res, ctx, eff, zone, name) {
+  var pkgName = 'archipolicy.' + (res || 'custom').replace(/[^a-z0-9]/g,'_');
+  var lines = [];
+  lines.push('package ' + pkgName);
+  lines.push('');
+  if (eff === 'PERMIT') {
+    lines.push('# ' + (name || 'Politique générée par ArchiPolicy PAP'));
+    lines.push('default allow = false');
+    lines.push('');
+    lines.push('allow {');
+    if (role && role !== 'ANY') lines.push('  input.subject.role == "' + role + '"');
+    if (res)                    lines.push('  input.resource.type == "' + res + '"');
+    if (ctx && ctx !== 'ANY')   lines.push('  input.context.mode == "' + ctx + '"');
+    if (zone && zone !== 'ALL') lines.push('  input.context.station == "' + zone + '"');
+    lines.push('}');
+  } else {
+    lines.push('# DENY absolu — ' + (name || ''));
+    lines.push('default deny = true');
+    lines.push('');
+    lines.push('deny {');
+    if (role && role !== 'ANY') lines.push('  input.subject.role == "' + role + '"');
+    if (res)                    lines.push('  input.resource.type == "' + res + '"');
+    lines.push('}');
+  }
+  return lines.join('\n');
+}
+
+/* ── Update rego preview live ── */
+function papUpdateRego() {
+  var roleEl = document.getElementById('fPolRole');
+  var resEl  = document.getElementById('fPolRes');
+  var ctxEl  = document.getElementById('fPolCtx');
+  var effEl  = document.getElementById('fPolEffect');
+  var zoneEl = document.getElementById('fPolZone');
+  var nameEl = document.getElementById('fPolName');
+  var prev   = document.getElementById('fRegoPreview');
+  if (!prev || !roleEl) return;
+  prev.textContent = generateRego(
+    roleEl.value, resEl ? resEl.value : '', ctxEl ? ctxEl.value : 'ANY',
+    effEl ? effEl.value : 'PERMIT', zoneEl ? zoneEl.value : 'ALL',
+    nameEl ? nameEl.value : ''
+  );
+}
+
+/* ── Ouvrir formulaire (create ou edit) ── */
+function papOpenForm(idx) {
+  PAP_EDIT_IDX = idx;
+  var fc = document.getElementById('papFormCard');
+  var ft = document.getElementById('papFormTitle');
+  if (!fc) return;
+
+  fc.style.display = 'block';
+  fc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  if (idx === -1) {
+    /* Création */
+    if (ft) ft.textContent = '+ Nouvelle règle d\'accès';
+    var idEl = document.getElementById('fPolId');
+    if (idEl) idEl.value = 'POL-' + String(PAP_POLICIES.length + 1).padStart(3,'0');
+    var nameEl = document.getElementById('fPolName'); if (nameEl) nameEl.value = '';
+    var resEl  = document.getElementById('fPolRes');  if (resEl)  resEl.value  = 'camera';
+    var roleEl = document.getElementById('fPolRole'); if (roleEl) roleEl.value = 'SECOURS';
+    var ctxEl  = document.getElementById('fPolCtx');  if (ctxEl)  ctxEl.value  = 'EMERGENCY';
+    var effEl  = document.getElementById('fPolEffect');if (effEl) effEl.value  = 'PERMIT';
+    var durEl  = document.getElementById('fPolDur');  if (durEl)  durEl.value  = '30 min';
+    var zonEl  = document.getElementById('fPolZone'); if (zonEl)  zonEl.value  = 'ALL';
+    var reaEl  = document.getElementById('fPolReason');if (reaEl) reaEl.value  = '';
+  } else {
+    /* Modification */
+    var p = PAP_POLICIES[idx];
+    if (!p) return;
+    if (ft) ft.textContent = '✏ Modifier ' + p.id + ' — ' + p.name;
+    var vals = {
+      fPolId:     p.id,
+      fPolName:   p.name,
+      fPolEffect: p.effect,
+      fPolDur:    p.duration || '30 min',
+      fPolReason: p.reason || '',
+      fPolZone:   p.zone || 'ALL'
+    };
+    Object.keys(vals).forEach(function(k){
+      var el = document.getElementById(k); if (el) el.value = vals[k];
+    });
+    /* Role */
+    var roleEl = document.getElementById('fPolRole');
+    if (roleEl) {
+      var r = Array.isArray(p.subject.role) ? p.subject.role[0] : p.subject.role;
+      roleEl.value = r;
+    }
+    /* Resource */
+    var resEl = document.getElementById('fPolRes');
+    if (resEl) {
+      var rs = Array.isArray(p.resource.type) ? p.resource.type[0] : p.resource.type;
+      resEl.value = rs;
+    }
+    /* Context */
+    var ctxEl = document.getElementById('fPolCtx');
+    if (ctxEl) ctxEl.value = p.context.mode || 'ANY';
+  }
+  papUpdateRego();
+}
+
+function papCloseForm() {
+  var fc = document.getElementById('papFormCard');
+  if (fc) fc.style.display = 'none';
+  PAP_EDIT_IDX = -1;
+}
+
+/* ── Sauvegarder (create ou update) ── */
+function papSavePolicy() {
+  var nameEl = document.getElementById('fPolName');
+  var roleEl = document.getElementById('fPolRole');
+  var resEl  = document.getElementById('fPolRes');
+  var ctxEl  = document.getElementById('fPolCtx');
+  var effEl  = document.getElementById('fPolEffect');
+  var durEl  = document.getElementById('fPolDur');
+  var zonEl  = document.getElementById('fPolZone');
+  var reaEl  = document.getElementById('fPolReason');
+  if (!nameEl || !roleEl || !resEl) return;
+
+  var name   = nameEl.value.trim() || 'Politique personnalisée';
+  var role   = roleEl.value;
+  var res    = resEl.value;
+  var ctx    = ctxEl  ? ctxEl.value  : 'ANY';
+  var eff    = effEl  ? effEl.value  : 'PERMIT';
+  var dur    = durEl  ? durEl.value  : '30 min';
+  var zone   = zonEl  ? zonEl.value  : 'ALL';
+  var reason = reaEl  ? reaEl.value.trim() : name;
+  var rego   = generateRego(role, res, ctx, eff, zone, name);
+
+  if (PAP_EDIT_IDX === -1) {
+    /* Création */
+    var id = 'POL-' + String(PAP_POLICIES.length + 1).padStart(3,'0');
+    PAP_POLICIES.push({
+      id:id, name:name, active:true, version:'v1.0', package:'archipolicy.custom', rego:rego,
+      subject:{role:role, orgs:[role.split('_')[0]]},
+      resource:{type:res, sensitivity:res==='camera'?'high':res==='personal_data'?'critical':'medium'},
+      context:{mode:ctx}, duration:dur, zone:zone, effect:eff, reason:reason || name
+    });
+    PAP_HISTORY.unshift({ ts:new Date(), action:'CREATE', polId:id, user:(CU?CU.name:'Admin')+' ('+( CU?CU.badge:'ADMIN')+')', detail:'Création : '+name });
+  } else {
+    /* Modification */
+    var p = PAP_POLICIES[PAP_EDIT_IDX];
+    var oldId = p.id;
+    p.name = name; p.rego = rego; p.duration = dur; p.zone = zone;
+    p.reason = reason; p.effect = eff;
+    p.subject = {role:role, orgs:[role.split('_')[0]]};
+    p.resource = {type:res, sensitivity:res==='camera'?'high':res==='personal_data'?'critical':'medium'};
+    p.context  = {mode:ctx};
+    PAP_HISTORY.unshift({ ts:new Date(), action:'MODIFY', polId:oldId, user:(CU?CU.name:'Admin'), detail:'Modification : '+name });
+  }
+
+  papCloseForm();
+  papRefreshAll();
+}
+
+/* ── Toggle actif/inactif ── */
+function papTogglePolicy(idx) {
+  var p = PAP_POLICIES[idx];
+  if (!p) return;
+  p.active = !p.active;
+  PAP_HISTORY.unshift({ ts:new Date(), action:p.active?'ENABLE':'DISABLE', polId:p.id, user:(CU?CU.name:'Admin'), detail:(p.active?'Activation':'Désactivation')+' de '+p.id });
+  papRefreshAll();
+}
+
+/* ── Supprimer ── */
+function papDeletePolicy(idx) {
+  var p = PAP_POLICIES[idx];
+  if (!p) return;
+  if (!confirm('Supprimer la politique ' + p.id + ' — ' + p.name + ' ?')) return;
+  PAP_HISTORY.unshift({ ts:new Date(), action:'DELETE', polId:p.id, user:(CU?CU.name:'Admin'), detail:'Suppression de '+p.id+' : '+p.name });
+  PAP_POLICIES.splice(idx, 1);
+  papRefreshAll();
+}
+
+/* ── Afficher Rego d'une politique ── */
+function papShowRego(polId) {
+  var pol = PAP_POLICIES.find(function(p){ return p.id === polId; });
+  if (!pol) return;
+  var d   = document.getElementById('regoDisplay');
+  var pid = document.getElementById('regoPolId');
+  if (d)   d.textContent  = pol.rego;
+  if (pid) pid.textContent = pol.id;
+}
+
+function papInitRego() {
+  var d = document.getElementById('regoDisplay');
+  if (d && (!d.textContent || d.textContent.trim() === '')) papShowRego(PAP_POLICIES[0].id);
+  /* Build rego buttons */
+  var btns = document.getElementById('regoBtns');
+  if (btns && !btns.dataset.built) {
+    btns.dataset.built = '1';
+    PAP_POLICIES.forEach(function(p) {
+      var b = document.createElement('button');
+      b.className = 'btn btn-g btn-sm';
+      b.style.cssText = 'font-size:0.61rem;padding:0.2rem 0.45rem;margin:0.1rem';
+      b.textContent = p.id;
+      b.onclick = function(){ papShowRego(p.id); };
+      btns.appendChild(b);
+    });
+  }
+  /* Update test ctx to match global state */
+  var tctx = document.getElementById('papTestCtx');
+  if (tctx) tctx.value = isEmergency ? 'EMERGENCY' : 'NORMAL';
+  papUpdateTestInput();
+}
+
+/* ── Update input JSON preview ── */
+function papUpdateTestInput() {
+  var roleEl = document.getElementById('papTestRole');
+  var resEl  = document.getElementById('papTestRes');
+  var ctxEl  = document.getElementById('papTestCtx');
+  var inp    = document.getElementById('papTestInput');
+  if (!inp || !roleEl) return;
+  var obj = {
+    input: {
+      subject:  { role: roleEl.value, org: roleEl.value.split('_')[0], did: 'DID:KEY:z6Mkh...' },
+      resource: { type: resEl ? resEl.value : 'camera', sensitivity: 'high' },
+      context:  { mode: ctxEl ? ctxEl.value : 'NORMAL', station: 'chatelet' }
+    }
+  };
+  inp.textContent = JSON.stringify(obj, null, 2);
+}
+
+/* ── Testeur ABAC ── */
+function papRunTest() {
+  var roleEl = document.getElementById('papTestRole');
+  var resEl  = document.getElementById('papTestRes');
+  var ctxEl  = document.getElementById('papTestCtx');
+  var el     = document.getElementById('papTestResult');
+  if (!roleEl || !resEl || !ctxEl || !el) return;
+
+  var role = roleEl.value, res = resEl.value, ctx = ctxEl.value;
+  papUpdateTestInput();
+
+  var subj     = { role: role, org: role.split('_')[0] };
+  var resource = { type: res, sensitivity: res==='camera'?'high':res==='personal_data'?'critical':'medium' };
+  var context  = { mode: ctx };
+  var dec      = abacDecide(subj, resource, context);
+
+  var col   = dec.decision === 'PERMIT' ? 'var(--green)' : 'var(--coral)';
+  var ico   = dec.decision === 'PERMIT' ? '✓' : '✗';
+  var polNm = dec.policy ? dec.policy.id + ' — ' + dec.policy.name : 'Aucune politique applicable';
+
+  el.style.display = 'block';
+  el.innerHTML =
+    '<div style="border:1.5px solid ' + col + ';border-radius:11px;padding:0.85rem;background:var(--card2)">' +
+      '<div style="font-size:0.92rem;font-weight:800;color:' + col + ';margin-bottom:0.55rem">' + ico + ' ' + dec.decision + '</div>' +
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.65rem;line-height:1.9;color:var(--tp)">' +
+        '<div><span style="color:var(--ts)">Règle appliquée :</span> ' + polNm + '</div>' +
+        '<div><span style="color:var(--ts)">Raison :</span> ' + dec.reason + '</div>' +
+        '<div><span style="color:var(--ts)">Sujet :</span> role=' + role + ' | org=' + subj.org + '</div>' +
+        '<div><span style="color:var(--ts)">Ressource :</span> type=' + res + ' | sensitivity=' + resource.sensitivity + '</div>' +
+        '<div><span style="color:var(--ts)">Contexte :</span> mode=' + ctx + '</div>' +
+      '</div>' +
+    '</div>';
+
+  /* Afficher la rego de la règle appliquée */
+  if (dec.policy) papShowRego(dec.policy.id);
+}
+
+/* ── Historique ── */
+function buildPapHistory() {
+  if (PAP_HISTORY.length === 0) return '<div style="color:var(--ts);font-size:0.78rem;padding:0.5rem">Aucune modification enregistrée.</div>';
+  var actionColors = { CREATE:'var(--green)', MODIFY:'var(--blue)', DEPLOY:'var(--teal)', DISABLE:'var(--gold)', ENABLE:'var(--green)', DELETE:'var(--coral)' };
+  var actionIcons  = { CREATE:'＋', MODIFY:'✏', DEPLOY:'▶', DISABLE:'◉', ENABLE:'◉', DELETE:'✕' };
+  return PAP_HISTORY.map(function(h) {
+    var col = actionColors[h.action] || 'var(--ts)';
+    var ico = actionIcons[h.action] || '·';
+    var ts  = h.ts instanceof Date ? h.ts.toLocaleTimeString('fr-FR',{hour12:false}) : '--:--';
+    return '<div style="display:flex;align-items:flex-start;gap:0.7rem;padding:0.42rem 0;border-bottom:1px solid var(--border)">' +
+      '<span style="font-family:\'JetBrains Mono\',monospace;font-size:0.62rem;color:' + col + ';min-width:18px;text-align:center">' + ico + '</span>' +
+      '<div style="flex:1">' +
+        '<span style="font-family:\'JetBrains Mono\',monospace;font-size:0.63rem;font-weight:700;color:' + col + '">' + h.action + '</span>' +
+        '&nbsp;<span style="font-family:\'JetBrains Mono\',monospace;font-size:0.62rem;color:var(--teal)">' + h.polId + '</span>' +
+        '&nbsp;&mdash;&nbsp;<span style="font-size:0.74rem;color:var(--tp)">' + h.detail + '</span>' +
+        '<div style="font-size:0.65rem;color:var(--ts);margin-top:0.1rem">' + h.user + ' &middot; ' + ts + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ── Matrice accès ── */
+function buildAbacMatrix() {
+  var roles = ['RATP_ADMIN','RATP_OPS','IDFM','SECOURS'];
+  var resources = [
+    {key:'camera',     label:'Flux vidéo',      normal:['RATP_ADMIN','RATP_OPS'],               emergency:['RATP_ADMIN','RATP_OPS','SECOURS']},
+    {key:'sensor',     label:'Capteurs densité', normal:['RATP_ADMIN','RATP_OPS','SECOURS'],     emergency:['RATP_ADMIN','RATP_OPS','SECOURS']},
+    {key:'plan',       label:'Plans évacuation', normal:['RATP_ADMIN','SECOURS'],                emergency:['RATP_ADMIN','SECOURS']},
+    {key:'aggregated', label:'Données agrégées', normal:['RATP_ADMIN','RATP_OPS','IDFM'],        emergency:['RATP_ADMIN','RATP_OPS','IDFM']},
+    {key:'transport',  label:'Position rames',   normal:['RATP_ADMIN','RATP_OPS'],               emergency:['RATP_ADMIN','RATP_OPS','SECOURS']},
+    {key:'policy',     label:'Politiques PAP',   normal:['RATP_ADMIN'],                          emergency:['RATP_ADMIN']},
+    {key:'personal_data',label:'Données perso',  normal:[],                                      emergency:[]}
+  ];
+  var mode = isEmergency ? 'emergency' : 'normal';
+  var header = roles.map(function(r){ return '<th style="padding:0.42rem 0.7rem;text-align:center;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">' + r + '</th>'; }).join('');
+  var bodyRows = resources.map(function(res){
+    var cells = roles.map(function(role){
+      var ok = res[mode].indexOf(role) >= 0;
+      return '<td style="padding:0.38rem 0.7rem;text-align:center"><span style="color:' + (ok?'var(--green)':'var(--coral)') + ';font-size:1rem;font-weight:700">' + (ok?'✓':'✗') + '</span></td>';
+    }).join('');
+    return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:0.38rem 0.7rem;font-size:0.76rem;font-weight:600">' + res.label + '</td>' + cells + '</tr>';
+  }).join('');
+  var modeLabel = isEmergency ? '<span style="color:var(--coral)">&#128308; EMERGENCY</span>' : '<span style="color:var(--green)">&#128994; NORMAL</span>';
+  return '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.62rem;color:var(--ts);margin-bottom:0.5rem">Contexte actif : ' + modeLabel + ' — Cliquez sur le badge NORMAL/EMERGENCY en haut à droite pour changer</div>' +
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.75rem"><thead><tr style="border-bottom:2px solid var(--border)"><th style="padding:0.42rem 0.7rem;text-align:left;font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts)">RESSOURCE</th>' + header + '</tr></thead><tbody>' + bodyRows + '</tbody></table></div>';
+}
+
+/* ── Refresh complet de tous les composants PAP ── */
+function papRefreshAll() {
+  var tbl = document.getElementById('papPolicyTable');
+  if (tbl) tbl.innerHTML = buildPapTable();
+  var hist = document.getElementById('papHistoryList');
+  if (hist) hist.innerHTML = buildPapHistory();
+  var mat = document.getElementById('papMatrix');
+  if (mat) mat.innerHTML = buildAbacMatrix();
+  var ac = document.getElementById('papCountActive');
+  if (ac) ac.textContent = PAP_POLICIES.filter(function(p){return p.active;}).length;
+  var np = document.getElementById('papPermitCount');
+  if (np) np.textContent = ABAC_AUDIT_LOG.filter(function(l){return l.decision==='PERMIT';}).length;
+  var nd = document.getElementById('papDenyCount');
+  if (nd) nd.textContent = ABAC_AUDIT_LOG.filter(function(l){return l.decision==='DENY';}).length;
+  /* Rebuild rego buttons */
+  var btns = document.getElementById('regoBtns');
+  if (btns) { btns.dataset.built = ''; btns.innerHTML = ''; }
+  papInitRego();
+}
+
+function papRefreshContext() {
+  var lbl = document.getElementById('papCtxLabel');
+  if (lbl) lbl.innerHTML = isEmergency ? '&#128308; EMERGENCY' : '&#128994; NORMAL';
+  var box = document.getElementById('papCtxBox');
+  if (box) box.className = 'pap-ctx-box ' + (isEmergency ? 'pap-ctx-emergency' : 'pap-ctx-normal');
+  papRefreshAll();
+}
+
+function papAddPolicy()    { papOpenForm(-1); }
+function papCreatePolicy() { papSavePolicy(); }
+function papShowCreateForm(){ papOpenForm(-1); }
+function papHideCreateForm(){ papCloseForm(); }
+function papRevokeAll()    { ABAC_AUDIT_LOG = []; papRefreshAll(); }
+function papTestPolicy()   { papRunTest(); }
+
+
+
+/* ── Journal d'audit ABAC amélioré ── */
+function initAudit() {
+  var tb = document.getElementById("auditBody") || document.getElementById("auditTl");
+  if (!tb || tb.dataset.init) return;
+  tb.dataset.init = "1";
+
+  /* Données de seed réalistes */
+  var seedRows = [
+    {ts:"14:18:34",actor:"DURAND T.",org:"BSPP",role:"SECOURS",res:"camera",station:"Chatelet Q4",mode:"NORMAL",d:"—",v:"DENY",pol:"POL-001",reason:"Mode NORMAL — EMERGENCY requis pour flux vidéo"},
+    {ts:"14:12:01",actor:"DURAND T.",org:"BSPP",role:"SECOURS",res:"sensor",station:"Chatelet Q4",mode:"NORMAL",d:"15min",v:"PERMIT",pol:"POL-002",reason:"Capteurs accessibles en mode normal"},
+    {ts:"13:55:10",actor:"MARTIN C.",org:"SAMU 75",role:"SECOURS",res:"transport",station:"RER A",mode:"NORMAL",d:"10min",v:"PERMIT",pol:"POL-002",reason:"Données transport accessibles aux secours accrédités"},
+    {ts:"13:30:42",actor:"MORAN I.",org:"IDFM",role:"IDFM",res:"aggregated",station:"Réseau",mode:"NORMAL",d:"session",v:"PERMIT",pol:"POL-003",reason:"Données agrégées autorisées IDFM"},
+    {ts:"11:02:17",actor:"DURAND T.",org:"BSPP",role:"SECOURS",res:"camera",station:"Gare du Nord",mode:"EMERGENCY",d:"30min",v:"PERMIT",pol:"POL-001",reason:"Mode EMERGENCY — accès caméra autorisé SECOURS"},
+    {ts:"10:45:00",actor:"LECLERC M.",org:"RATP",role:"RATP_ADMIN",res:"policy",station:"—",mode:"NORMAL",d:"session",v:"PERMIT",pol:"POL-004",reason:"Administration PAP réservée Super-Admin"}
+  ];
+
+  if (tb.tagName === "TBODY") {
+    /* Vue RATP avec table détaillée */
+    seedRows.forEach(function(r){
+      var vc = r.v==="PERMIT" ? "pg" : "pr";
+      var mc = r.mode==="EMERGENCY" ? "var(--coral)" : "var(--green)";
+      tb.innerHTML += '<tr>'+
+        '<td style="font-family:var(--mono);font-size:0.67rem;color:var(--ts)">'+r.ts+'</td>'+
+        '<td style="font-size:0.76rem">'+r.actor+'</td>'+
+        '<td><span class="pill pb" style="font-size:0.57rem">'+r.org+'</span></td>'+
+        '<td style="font-family:var(--mono);font-size:0.62rem">'+r.res+'</td>'+
+        '<td><span style="font-family:var(--mono);font-size:0.6rem;color:'+mc+'">● '+r.mode+'</span></td>'+
+        '<td style="font-family:var(--mono);font-size:0.67rem;color:var(--ts)">'+r.d+'</td>'+
+        '<td><span class="pill '+vc+'">'+r.v+'</span></td>'+
+        '<td style="font-family:var(--mono);font-size:0.6rem;color:var(--teal)">'+r.pol+'</td>'+
+        '<td style="font-size:0.7rem;color:var(--ts);max-width:220px">'+r.reason+'</td>'+
+      '</tr>';
+    });
+  } else {
+    /* Vue timeline */
+    seedRows.forEach(function(r){
+      tb.innerHTML += '<div class="tl-item">'+
+        '<div class="tl-dot '+(r.v==="PERMIT"?"ok":"alert")+'"></div>'+
+        '<div class="tl-time">'+r.ts+'</div>'+
+        '<div class="tl-msg"><strong>'+r.actor+'</strong> ('+r.org+') — '+r.res+' → '+
+          '<span style="color:'+(r.v==="PERMIT"?"var(--green)":"var(--coral)")+'">'+r.v+'</span>'+
+          ' <span style="font-family:var(--mono);font-size:0.6rem;color:var(--ts)">'+r.pol+'</span>'+
+        '</div></div>';
+    });
+  }
+}
+
+/* Rafraîchit l'audit si la vue est ouverte */
+function refreshAuditIfOpen() {
+  var auditView = document.getElementById("view-audit");
+  if (!auditView || !auditView.classList.contains("active")) return;
+  var tb = document.getElementById("auditBody");
+  if (!tb) return;
+  /* Ajouter les nouvelles entrées du ledger en tête */
+  var newRows = ABAC_AUDIT_LOG.slice(0,5);
+  newRows.reverse().forEach(function(r){
+    var mc = r.mode==="EMERGENCY" ? "var(--coral)" : "var(--green)";
+    var vc = r.decision==="PERMIT" ? "pg" : "pr";
+    var row = document.createElement("tr");
+    row.innerHTML =
+      '<td style="font-family:var(--mono);font-size:0.67rem;color:var(--ts)">'+r.ts.toLocaleTimeString("fr-FR",{hour12:false})+'</td>'+
+      '<td style="font-size:0.76rem">'+r.actor+'</td>'+
+      '<td><span class="pill pb" style="font-size:0.57rem">'+r.org+'</span></td>'+
+      '<td style="font-family:var(--mono);font-size:0.62rem">'+r.resType+'</td>'+
+      '<td><span style="font-family:var(--mono);font-size:0.6rem;color:'+mc+'">● '+r.mode+'</span></td>'+
+      '<td style="font-family:var(--mono);font-size:0.67rem;color:var(--ts)">'+r.duration+'</td>'+
+      '<td><span class="pill '+vc+'">'+r.decision+'</span></td>'+
+      '<td style="font-family:var(--mono);font-size:0.6rem;color:var(--teal)">'+r.policy+'</td>'+
+      '<td style="font-size:0.7rem;color:var(--ts);max-width:200px">'+r.reason.slice(0,60)+(r.reason.length>60?"…":"")+'</td>';
+    tb.insertBefore(row, tb.firstChild);
+  });
+  /* Update PAP counters */
+  var pc = document.getElementById("papPermitCount");
+  var dc = document.getElementById("papDenyCount");
+  if(pc) pc.textContent = ABAC_AUDIT_LOG.filter(function(l){return l.decision==="PERMIT";}).length;
+  if(dc) dc.textContent = ABAC_AUDIT_LOG.filter(function(l){return l.decision==="DENY";}).length;
+}
+
+/* PAP refresh on toggle — inline, no recursion */
+
+
+
+function papRefreshContext(){
+  var ctx = document.getElementById("papCtxLabel");
+  if(ctx) ctx.textContent = "Contexte global : " + (isEmergency ? "🔴 EMERGENCY" : "● NORMAL");
+  var ctxBox = document.getElementById("papCtxBox");
+  if(ctxBox) ctxBox.className = "abox " + (isEmergency?"danger":"info") + " mb1";
+  var ac = document.getElementById("papCountActive");
+  if(ac) ac.textContent = PAP_POLICIES.filter(function(p){return p.active;}).length;
+}
+
+setInterval(function(){var el=document.getElementById("densMax");if(el){var v=(3.3+Math.random()*0.9).toFixed(1);el.textContent=v;el.style.color=parseFloat(v)>=4?"var(--coral)":"var(--gold)";}},2500);
+
+/* ══════════════════════════════════════════════════════════
+   CARTE THERMIQUE D'AFFLUENCE — ArchiPolicy
+   Basée sur Leaflet + OpenStreetMap
+══════════════════════════════════════════════════════════ */
+
+/* ── Données des stations Île-de-France ── */
+var STATIONS = [
+  { id:"chatelet",   name:"Châtelet-Les Halles", lat:48.8597, lng:2.3474, seuil:4.0, lines:["RER A","RER B","RER D","M1","M4","M7","M11","M14"] },
+  { id:"nord",       name:"Gare du Nord",         lat:48.8809, lng:2.3553, seuil:4.0, lines:["RER B","RER D","M4","M5","Eurostar","Thalys"] },
+  { id:"lazare",     name:"Saint-Lazare",          lat:48.8757, lng:2.3247, seuil:4.0, lines:["RER E","M3","M9","M12","M13","M14"] },
+  { id:"nation",     name:"Nation",                lat:48.8484, lng:2.3962, seuil:3.5, lines:["RER A","M1","M2","M6","M9"] },
+  { id:"montparnasse",name:"Montparnasse",         lat:48.8414, lng:2.3212, seuil:3.5, lines:["TGV","M4","M6","M12","M13"] },
+  { id:"defense",    name:"La Défense",            lat:48.8920, lng:2.2387, seuil:4.0, lines:["RER A","M1","T2"] },
+  { id:"republique", name:"République",            lat:48.8674, lng:2.3636, seuil:3.5, lines:["M3","M5","M8","M9","M11"] },
+  { id:"auber",      name:"Auber",                 lat:48.8741, lng:2.3318, seuil:3.5, lines:["RER A"] },
+  { id:"bfm",        name:"Bibliothèque F-M",      lat:48.8297, lng:2.3760, seuil:3.0, lines:["RER C","M14"] },
+  { id:"denfert",    name:"Denfert-Rochereau",     lat:48.8338, lng:2.3324, seuil:3.0, lines:["RER B","M4","M6"] },
+  { id:"vincennes",  name:"Vincennes",             lat:48.8481, lng:2.4397, seuil:2.5, lines:["M1"] },
+  { id:"bagnolet",   name:"Gallieni",              lat:48.8656, lng:2.4155, seuil:2.5, lines:["M3"] },
+  { id:"invalides",  name:"Invalides",             lat:48.8631, lng:2.3128, seuil:2.5, lines:["RER C","M8","M13"] },
+  { id:"opera",      name:"Opéra",                 lat:48.8718, lng:2.3318, seuil:3.0, lines:["M3","M7","M8"] },
+  { id:"bastille",   name:"Bastille",              lat:48.8532, lng:2.3691, seuil:3.0, lines:["M1","M5","M8"] }
+];
+
+/* Densités simulées dynamiques */
+var stationData = {};
+var stationHistory = {}; /* historique 10 dernières valeurs */
+
+function initStationData() {
+  /* Données initiales réalistes selon heure */
+  var baseValues = {
+    chatelet:3.7, nord:3.1, lazare:2.8, nation:2.2, montparnasse:2.6,
+    defense:1.9, republique:2.0, auber:2.4, bfm:1.2, denfert:1.5,
+    vincennes:0.8, bagnolet:1.1, invalides:1.3, opera:1.8, bastille:1.6
+  };
+  STATIONS.forEach(function(s) {
+    var base = baseValues[s.id] || 1.5;
+    stationData[s.id] = {
+      density: base,
+      trend: Math.random() > 0.5 ? "hausse" : Math.random() > 0.5 ? "baisse" : "stable",
+      updated: new Date()
+    };
+    stationHistory[s.id] = [];
+    for(var i=0;i<10;i++) {
+      stationHistory[s.id].push( Math.max(0.2, base + (Math.random()-0.5)*0.8) );
+    }
+  });
+}
+
+function updateStationData() {
+  STATIONS.forEach(function(s) {
+    var d = stationData[s.id];
+    var old = d.density;
+    /* Variation aléatoire réaliste ±0.3 avec drift */
+    var delta = (Math.random()-0.48)*0.35;
+    /* Forcer Châtelet et Gare du Nord à rester élevées */
+    if(s.id==="chatelet"||s.id==="nord") delta = (Math.random()-0.45)*0.25;
+    d.density = Math.max(0.1, Math.min(6.0, old + delta));
+    d.density = Math.round(d.density*10)/10;
+    d.trend = d.density > old+0.05 ? "hausse" : d.density < old-0.05 ? "baisse" : "stable";
+    d.updated = new Date();
+    stationHistory[s.id].push(d.density);
+    if(stationHistory[s.id].length > 20) stationHistory[s.id].shift();
+  });
+}
+
+function getDensityStatus(density, seuil) {
+  if(density >= seuil)              return { label:"CRITIQUE",   color:"#ef4444", dimColor:"rgba(239,68,68,0.15)",   cls:"critical" };
+  if(density >= seuil * 0.75)       return { label:"SURVEILLANCE",color:"#f59e0b", dimColor:"rgba(245,158,11,0.15)", cls:"warning"  };
+  return                                   { label:"NORMAL",     color:"#10b981", dimColor:"rgba(16,185,129,0.15)", cls:"normal"   };
+}
+
+function getTrendIcon(trend) {
+  if(trend==="hausse") return '<span style="color:#ef4444">↑ hausse</span>';
+  if(trend==="baisse") return '<span style="color:#10b981">↓ baisse</span>';
+  return '<span style="color:#6b7280">→ stable</span>';
+}
+
+/* ── Construction HTML de la vue heatmap ── */
+function buildHeatmapViewHTML() {
+  return '<div class="view" id="view-heatmap">' +
+    '<div class="ph">' +
+      '<div><div class="pt">&#127754; Carte Thermique d\'Affluence</div>' +
+      '<div class="ps">Vue temps réel des densités &mdash; Île-de-France &middot; Mise à jour automatique</div></div>' +
+      '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;" id="hm-top-controls"></div>' +
+    '</div>' +
+    '<div id="hm-restricted-banner"></div>' +
+    '<div class="hm-controls">' +
+      '<button class="hm-ctrl-btn active" id="hm-btn-all" onclick="hmFilter(\'all\')">Toutes</button>' +
+      '<button class="hm-ctrl-btn" id="hm-btn-crit" onclick="hmFilter(\'critical\')">&#128308; Critiques</button>' +
+      '<button class="hm-ctrl-btn" id="hm-btn-warn" onclick="hmFilter(\'warning\')">&#128992; Surveillance</button>' +
+      '<button class="hm-ctrl-btn" id="hm-btn-ok" onclick="hmFilter(\'normal\')">&#128994; Normales</button>' +
+      '<div class="hm-update-badge"><div class="hm-pulse"></div><span id="hm-last-update">En direct</span></div>' +
+    '</div>' +
+    '<div id="heatmap-container">' +
+      '<div id="leaflet-map"></div>' +
+      '<div id="heatmap-panel">' +
+        '<div class="hm-legend">' +
+          '<div class="hm-legend-title">&#128204; Légende densité</div>' +
+          '<div class="hm-legend-item"><div class="hm-dot" style="background:#ef4444"></div><span>Critique ≥ seuil p/m²</span><span style="margin-left:auto;font-family:\'JetBrains Mono\',monospace;font-size:0.65rem;color:#ef4444">DANGER</span></div>' +
+          '<div class="hm-legend-item"><div class="hm-dot" style="background:#f59e0b"></div><span>Surveillance ≥ 75% seuil</span><span style="margin-left:auto;font-family:\'JetBrains Mono\',monospace;font-size:0.65rem;color:#f59e0b">ALERTE</span></div>' +
+          '<div class="hm-legend-item"><div class="hm-dot" style="background:#10b981"></div><span>Normal &lt; 75% seuil</span><span style="margin-left:auto;font-family:\'JetBrains Mono\',monospace;font-size:0.65rem;color:#10b981">OK</span></div>' +
+        '</div>' +
+        '<div class="hm-stats" id="hm-stats-box"></div>' +
+        '<div class="hm-alert-list"><div style="font-family:\'JetBrains Mono\',monospace;font-size:0.6rem;color:var(--ts);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.6rem">&#9888; Alertes &amp; Surveillance</div><div id="hm-alert-list-inner"></div></div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ── État de la carte ── */
+var leafletMap = null;
+var hmMarkers = {};
+var hmCurrentFilter = "all";
+var hmUpdateInterval = null;
+var hmSelectedStation = null;
+
+/* ── Initialisation carte ── */
+function initHeatmap() {
+  var view = document.getElementById("view-heatmap");
+  if(!view) return;
+
+  /* Init données si pas encore fait */
+  if(Object.keys(stationData).length === 0) initStationData();
+
+  /* Banner accès limité pour secours en mode normal */
+  var banner = document.getElementById("hm-restricted-banner");
+  if(banner) {
+    if(CU.id==="secours" && !isEmergency) {
+      banner.innerHTML = '<div class="hm-restricted"><span style="font-size:1.2rem">&#9888;</span><div><strong>Accès restreint — Mode NORMAL</strong>Vue limitée aux zones critiques uniquement. Déclenchez une urgence pour accéder à la carte complète.</div></div>';
+    } else { banner.innerHTML = ""; }
+  }
+
+  /* Créer la carte Leaflet si pas encore initialisée */
+  if(!leafletMap) {
+    /* Petit délai pour laisser le DOM s'installer */
+    setTimeout(function() { _buildLeafletMap(); }, 80);
+  } else {
+    /* Juste rafraîchir les marqueurs */
+    setTimeout(function() { leafletMap.invalidateSize(); updateHeatmapMarkers(); updateHmPanel(); }, 80);
+  }
+
+  /* Relancer l'intervalle de mise à jour */
+  if(hmUpdateInterval) clearInterval(hmUpdateInterval);
+  hmUpdateInterval = setInterval(function() {
+    updateStationData();
+    updateHeatmapMarkers();
+    updateHmPanel();
+    var el = document.getElementById("hm-last-update");
+    if(el) { var d=new Date(); el.textContent = "Màj " + d.toLocaleTimeString("fr-FR",{hour12:false}); }
+    /* Vérifier si une urgence vient d'être déclarée */
+    if(CU && CU.id==="secours") {
+      var b=document.getElementById("hm-restricted-banner");
+      if(b) {
+        if(!isEmergency) b.innerHTML='<div class="hm-restricted"><span style="font-size:1.2rem">&#9888;</span><div><strong>Accès restreint — Mode NORMAL</strong>Vue limitée aux zones critiques uniquement.</div></div>';
+        else b.innerHTML="";
+      }
+    }
+  }, 3000);
+}
+
+function _buildLeafletMap() {
+  var mapEl = document.getElementById("leaflet-map");
+  if(!mapEl) return;
+
+  /* Créer la carte Leaflet centrée sur Paris */
+  leafletMap = L.map("leaflet-map", {
+    center: [48.862, 2.340],
+    zoom: 12,
+    zoomControl: true,
+    attributionControl: true
+  });
+
+  /* Fond OpenStreetMap */
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18
+  }).addTo(leafletMap);
+
+  /* Construire les marqueurs */
+  buildHeatmapMarkers();
+  updateHmPanel();
+}
+
+/* ── Construction des marqueurs ── */
+function buildHeatmapMarkers() {
+  if(!leafletMap) return;
+  var stationsToShow = getVisibleStations();
+
+  stationsToShow.forEach(function(s) {
+    var d = stationData[s.id];
+    var status = getDensityStatus(d.density, s.seuil);
+    var size = getMarkerSize(d.density, s.seuil);
+
+    var icon = L.divIcon({
+      className: "",
+      html: '<div class="heat-marker ' + status.cls + '" style="width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size*0.34) + 'px">' + d.density.toFixed(1) + '</div>',
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2],
+      popupAnchor: [0, -size/2]
+    });
+
+    var marker = L.marker([s.lat, s.lng], { icon: icon }).addTo(leafletMap);
+    marker.bindPopup(buildPopupHTML(s), { maxWidth: 280, className: "acifo-popup" });
+    marker.on("click", function() { hmSelectedStation = s.id; });
+    hmMarkers[s.id] = marker;
+  });
+}
+
+function getMarkerSize(density, seuil) {
+  var ratio = density / seuil;
+  if(ratio >= 1) return 48;
+  if(ratio >= 0.75) return 40;
+  return 32;
+}
+
+function getVisibleStations() {
+  /* Filtrage selon rôle */
+  if(CU.id === "secours" && !isEmergency) {
+    return STATIONS.filter(function(s) {
+      return getDensityStatus(stationData[s.id].density, s.seuil).cls === "critical";
+    });
+  }
+  if(CU.id === "secours" && isEmergency) {
+    /* Secours en urgence : critiques + surveillance */
+    return STATIONS.filter(function(s) {
+      var st = getDensityStatus(stationData[s.id].density, s.seuil).cls;
+      return st === "critical" || st === "warning";
+    });
+  }
+  /* Tous les autres : tout voir */
+  return STATIONS;
+}
+
+function updateHeatmapMarkers() {
+  if(!leafletMap) return;
+  var stationsToShow = getVisibleStations();
+  var showIds = {};
+  stationsToShow.forEach(function(s){ showIds[s.id]=true; });
+
+  STATIONS.forEach(function(s) {
+    var d = stationData[s.id];
+    var status = getDensityStatus(d.density, s.seuil);
+    var size = getMarkerSize(d.density, s.seuil);
+
+    /* Vérifier filtre actif */
+    var matchFilter = (hmCurrentFilter === "all") || (hmCurrentFilter === status.cls);
+    var visible = showIds[s.id] && matchFilter;
+
+    if(!hmMarkers[s.id] && visible) {
+      /* Créer si inexistant */
+      var icon = L.divIcon({
+        className:"",
+        html:'<div class="heat-marker '+status.cls+'" style="width:'+size+'px;height:'+size+'px;font-size:'+Math.round(size*0.34)+'px">'+d.density.toFixed(1)+'</div>',
+        iconSize:[size,size], iconAnchor:[size/2,size/2], popupAnchor:[0,-size/2]
+      });
+      var m=L.marker([s.lat,s.lng],{icon:icon}).addTo(leafletMap);
+      m.bindPopup(buildPopupHTML(s),{maxWidth:280,className:"acifo-popup"});
+      m.on("click",function(){hmSelectedStation=s.id;});
+      hmMarkers[s.id]=m;
+    } else if(hmMarkers[s.id]) {
+      if(!visible) {
+        /* Cacher */
+        hmMarkers[s.id].remove();
+        delete hmMarkers[s.id];
+      } else {
+        /* Mettre à jour l'icône */
+        var newIcon = L.divIcon({
+          className:"",
+          html:'<div class="heat-marker '+status.cls+'" style="width:'+size+'px;height:'+size+'px;font-size:'+Math.round(size*0.34)+'px">'+d.density.toFixed(1)+'</div>',
+          iconSize:[size,size], iconAnchor:[size/2,size/2], popupAnchor:[0,-size/2]
+        });
+        hmMarkers[s.id].setIcon(newIcon);
+        /* Mettre à jour la popup si ouverte */
+        if(hmMarkers[s.id].isPopupOpen()) {
+          hmMarkers[s.id].setPopupContent(buildPopupHTML(s));
+        }
+      }
+    }
+  });
+}
+
+/* ── Construction du popup Leaflet ── */
+function buildPopupHTML(s) {
+  var d = stationData[s.id];
+  var status = getDensityStatus(d.density, s.seuil);
+  var hist = stationHistory[s.id] || [];
+  var canShowHistory = (CU.id !== "secours") && (CU.id !== "idfm");
+
+  var lines = s.lines.slice(0,3).join(", ");
+  if(s.lines.length>3) lines += " +"+( s.lines.length-3);
+
+  var sparkHTML = "";
+  if(canShowHistory && hist.length > 3) {
+    sparkHTML = '<div class="popup-spark">' +
+      '<div class="popup-spark-title">Historique (20 dernières mises à jour)</div>' +
+      '<canvas id="spark-'+s.id+'" width="230" height="48" style="display:block;width:100%;border-radius:4px"></canvas>' +
+    '</div>';
+  }
+
+  var restrictedNote = "";
+  if(CU.id==="idfm") restrictedNote = '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts);margin-top:0.6rem;padding-top:0.5rem;border-top:1px solid var(--border)">Données agrégées &mdash; accès IDFM</div>';
+  if(CU.id==="secours") restrictedNote = '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.58rem;color:var(--ts);margin-top:0.6rem;padding-top:0.5rem;border-top:1px solid var(--border)">Accès terrain &mdash; BSPP</div>';
+
+  var h = '<div class="popup-inner">' +
+    '<div class="popup-gare-name">&#128652; ' + s.name + '</div>' +
+    '<span class="popup-badge" style="background:'+status.dimColor+';color:'+status.color+';border:1px solid '+status.color+'40">&#9679; '+status.label+'</span>' +
+    '<div class="popup-row"><span class="popup-key">Densité actuelle</span><span class="popup-val" style="color:'+status.color+'">'+d.density.toFixed(1)+' p/m²</span></div>' +
+    '<div class="popup-row"><span class="popup-key">Seuil critique</span><span class="popup-val">'+s.seuil.toFixed(1)+' p/m²</span></div>' +
+    '<div class="popup-row"><span class="popup-key">Tendance</span><span class="popup-val">'+getTrendIcon(d.trend)+'</span></div>' +
+    '<div class="popup-row"><span class="popup-key">Lignes</span><span class="popup-val" style="font-size:0.62rem">'+lines+'</span></div>' +
+    '<div class="popup-row"><span class="popup-key">Dernière màj</span><span class="popup-val" style="font-size:0.65rem">'+d.updated.toLocaleTimeString("fr-FR",{hour12:false})+'</span></div>';
+
+  if(CU.id !== "secours" && CU.id !== "idfm") {
+    h += '<div class="popup-row"><span class="popup-key">Source</span><span class="popup-val" style="font-size:0.62rem">Capteurs + Vidéo</span></div>';
+  }
+
+  h += sparkHTML + restrictedNote + '</div>';
+
+  /* Dessiner le sparkline après un court délai */
+  if(canShowHistory && hist.length > 3) {
+    setTimeout(function(){ drawSparkline("spark-"+s.id, hist, status.color); }, 120);
+  }
+  return h;
+}
+
+/* ── Sparkline canvas ── */
+function drawSparkline(canvasId, data, color) {
+  var cv = document.getElementById(canvasId);
+  if(!cv) return;
+  var ctx = cv.getContext("2d");
+  var w = cv.width, h = cv.height;
+  var mx = Math.max.apply(null, data), mn = Math.min.apply(null, data);
+  var range = mx - mn || 0.5;
+  ctx.clearRect(0,0,w,h);
+
+  /* Fond */
+  ctx.fillStyle = "rgba(0,0,0,0.1)";
+  ctx.fillRect(0,0,w,h);
+
+  /* Ligne */
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+  data.forEach(function(v,i) {
+    var x = (i/(data.length-1))*(w-4)+2;
+    var y = h - ((v-mn)/range)*(h-8) - 4;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  /* Aire sous la courbe */
+  ctx.lineTo((data.length-1)/(data.length-1)*(w-4)+2, h);
+  ctx.lineTo(2,h);
+  ctx.fillStyle = color.replace(")", ",0.15)").replace("rgb","rgba").replace("#ef4444","rgba(239,68,68,0.15)").replace("#f59e0b","rgba(245,158,11,0.15)").replace("#10b981","rgba(16,185,129,0.15)");
+  ctx.fill();
+
+  /* Point final */
+  var lx = (data.length-1)/(data.length-1)*(w-4)+2;
+  var lv = data[data.length-1];
+  var ly = h - ((lv-mn)/range)*(h-8) - 4;
+  ctx.beginPath();
+  ctx.arc(lx, ly, 3, 0, Math.PI*2);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+/* ── Panneau latéral ── */
+function updateHmPanel() {
+  updateHmStats();
+  updateHmAlertList();
+}
+
+function updateHmStats() {
+  var el = document.getElementById("hm-stats-box");
+  if(!el) return;
+  var total = STATIONS.length;
+  var crit=0, warn=0, ok=0;
+  var maxDens=0, maxName="";
+  STATIONS.forEach(function(s) {
+    var d = stationData[s.id];
+    var st = getDensityStatus(d.density, s.seuil).cls;
+    if(st==="critical") crit++;
+    else if(st==="warning") warn++;
+    else ok++;
+    if(d.density > maxDens){ maxDens=d.density; maxName=s.name; }
+  });
+  el.innerHTML =
+    '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.6rem;color:var(--ts);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.6rem">&#128200; Résumé réseau</div>' +
+    '<div class="hm-stat-row"><span>Stations surveillées</span><span class="hm-stat-val" style="color:var(--teal)">'+total+'</span></div>' +
+    '<div class="hm-stat-row"><span>&#128308; Critiques</span><span class="hm-stat-val" style="color:#ef4444">'+crit+'</span></div>' +
+    '<div class="hm-stat-row"><span>&#128992; Surveillance</span><span class="hm-stat-val" style="color:#f59e0b">'+warn+'</span></div>' +
+    '<div class="hm-stat-row"><span>&#128994; Normales</span><span class="hm-stat-val" style="color:#10b981">'+ok+'</span></div>' +
+    '<div class="hm-stat-row"><span>Densité max</span><span class="hm-stat-val" style="color:#ef4444">'+maxDens.toFixed(1)+' p/m²</span></div>' +
+    '<div class="hm-stat-row" style="border-bottom:none"><span style="font-size:0.68rem">'+maxName+'</span></div>';
+}
+
+function updateHmAlertList() {
+  var el = document.getElementById("hm-alert-list-inner");
+  if(!el) return;
+  var sorted = STATIONS.slice().sort(function(a,b){ return stationData[b.id].density - stationData[a.id].density; });
+  /* Limiter selon le rôle */
+  if(CU.id==="idfm") sorted = sorted.slice(0,8);
+  if(CU.id==="secours") {
+    sorted = sorted.filter(function(s){ return getDensityStatus(stationData[s.id].density,s.seuil).cls!=="normal"; });
+  }
+  var html = "";
+  sorted.forEach(function(s) {
+    var d = stationData[s.id];
+    var st = getDensityStatus(d.density, s.seuil);
+    html += '<div class="hm-alert-item" onclick="hmFocusStation(\''+s.id+'\')">'+
+      '<div class="hm-alert-dot" style="background:'+st.color+'"></div>'+
+      '<span class="hm-alert-name">'+s.name+'</span>'+
+      '<span class="hm-alert-val" style="color:'+st.color+'">'+d.density.toFixed(1)+'</span>'+
+      '<span class="hm-alert-trend" style="margin-left:0.3rem">'+
+        (d.trend==="hausse"?'&#8593;':d.trend==="baisse"?'&#8595;':'&#8594;')+
+      '</span>'+
+    '</div>';
+  });
+  el.innerHTML = html || '<div style="font-size:0.75rem;color:var(--ts);text-align:center;padding:0.5rem">Aucune alerte active</div>';
+}
+
+/* ── Centrer sur une station depuis la liste ── */
+function hmFocusStation(stationId) {
+  if(!leafletMap) return;
+  var s = STATIONS.find(function(x){ return x.id===stationId; });
+  if(!s) return;
+  leafletMap.setView([s.lat, s.lng], 14, {animate:true});
+  if(hmMarkers[stationId]) {
+    setTimeout(function(){ hmMarkers[stationId].openPopup(); }, 400);
+  }
+}
+
+/* ── Filtre par statut ── */
+function hmFilter(type) {
+  hmCurrentFilter = type;
+  document.querySelectorAll(".hm-ctrl-btn").forEach(function(b){ b.classList.remove("active"); });
+  var btnMap = { all:"hm-btn-all", critical:"hm-btn-crit", warning:"hm-btn-warn", normal:"hm-btn-ok" };
+  var btn = document.getElementById(btnMap[type]);
+  if(btn) btn.classList.add("active");
+  updateHeatmapMarkers();
+  updateHmPanel();
+}
+
+/* ── Nettoyage quand on quitte la vue ── */
+function cleanupHeatmap() {
+  if(hmUpdateInterval) { clearInterval(hmUpdateInterval); hmUpdateInterval=null; }
+}
+</script>
+</body>
+</html>
